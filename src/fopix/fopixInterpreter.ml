@@ -149,13 +149,23 @@ and expression runtime = function
     expression runtime e
 
   | IfThenElse (c, t, f) ->
-    failwith "Student! This is your job!"
+      let v = expression runtime c in
+      begin match value_as_bool v with
+      |None -> Printf.printf "Not valid if condition" ; assert false
+      |Some true  -> expression runtime t
+      |Some false -> expression runtime f
+      end
 
   | BinOp (Add|Sub|Mul|Div|Mod as op, e1, e2) ->
     binop runtime op e1 e2
 
-  | BinOp _ | BlockNew _ | BlockGet _ | BlockSet _ ->
-    failwith "Student! This is your job!"
+  | BinOp (Lt|Gt|Le|Ge|Eq as op, e1, e2) ->
+    binop runtime op e1 e2
+
+
+  | BlockNew _ | BlockGet _ | BlockSet _ ->
+      
+      failwith "Sedik! This is your job!"
 
   | FunCall (fexpr, args) ->
     failwith "Student! This is your job!"
