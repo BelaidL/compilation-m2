@@ -163,9 +163,38 @@ and expression runtime = function
     binop runtime op e1 e2
 
 
-  | BlockNew _ | BlockGet _ | BlockSet _ ->
-      
-      failwith "Sedik! This is your job!"
+  | BlockNew e ->
+      let v = expression runtime e in
+      begin match v with
+      | VInt x -> let adr = Memory.allocate memory x (VInt 0) in VLocation adr
+      | _ -> Printf.printf "[expr]: expr should be evaluate to int!";
+	  assert false
+      end
+	
+  | BlockGet (e1, e2) ->
+      let v = expression runtime e2 in
+      let v1 = expression runtime e1 in
+      begin match v1 with
+      | VLocation adr ->
+	  begin match v with
+	  | VInt x -> Memory.read (Memory.dereference memory adr) x
+	  | _      -> failwith "error index"
+	  end
+      | _ -> failwith "error address"
+      end   
+
+  | BlockSet (e1, e2, e3) ->
+      let v1 = expression runtime e1 in
+      let v2 = expression runtime e2 in
+      let v3 = expression runtime e3 in
+      begin match v1 with
+      | VLocation adr ->
+	  begin match v2 with
+	  | VInt x -> Memory.write (Memory.dereference memory adr) x v3; VUnit
+	  | _      -> failwith "error index"
+	  end
+      | _ -> failwith "error address"
+      end  
 
   | FunCall (fexpr, args) ->
     failwith "Student! This is your job!"
