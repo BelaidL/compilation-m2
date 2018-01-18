@@ -11,7 +11,7 @@ type value =
   | VInt      of int
   | VBool     of bool
   | VLocation of Memory.location
-  | VFun      of function_identifier
+  | VFun      of function_identifier * formals * expression
 
 let print_value = function
   | VInt x      -> string_of_int x
@@ -19,7 +19,7 @@ let print_value = function
   | VBool false -> "false"
   | VUnit       -> "()"
   | VLocation l -> Memory.print_location l
-  | VFun f      -> f
+  | VFun (f,fl, e) -> f
 
 type 'a coercion = value -> 'a option
 let value_as_int      = function VInt x -> Some x | _ -> None
@@ -131,17 +131,17 @@ and declaration runtime = function
   | DefVal (i, e) ->
     let v = expression runtime e in
     { environment = Environment.bind runtime.environment i v }
-  | DefFun _ ->
-    runtime (*TODO: To scan all the function and store it into environment *)
+  | DefFun (id, id_list, e) ->
+    failwith "sedik it's yor job!"
 
 and expression runtime = function
   | Num n -> VInt n
 
-  | FunName f -> VFun f
+  | FunName f -> Environment.lookup f runtime.environment
 
   | Var x -> Environment.lookup x runtime.environment
 
-  | Def (x, ex, e) ->
+  | Let (x, ex, e) ->
     let v = expression runtime ex in
     let runtime =
      { environment = Environment.bind runtime.environment x v }
@@ -166,8 +166,8 @@ and expression runtime = function
       let v = expression runtime e in
       begin match v with
       | VInt x -> let adr = Memory.allocate memory x (VInt 0) in VLocation adr
-      | _ -> Printf.printf "[expr]: expr should be evaluate to int!";
-	  assert false
+      | _ -> Printf.printf "Expr should be evaluate to int!";
+	      assert false
       end
 	
   | BlockGet (e1, e2) ->
@@ -175,11 +175,11 @@ and expression runtime = function
       let v1 = expression runtime e1 in
       begin match v1 with
       | VLocation adr ->
-	  begin match v with
-	  | VInt x -> Memory.read (Memory.dereference memory adr) x
-	  | _      -> failwith "error index"
-	  end
-      | _ -> failwith "error address"
+      	  begin match v with
+      	  | VInt x -> Memory.read (Memory.dereference memory adr) x
+      	  | _      -> failwith "Incorrect address in VLocation of BlockSet"
+      	  end
+      | _ -> failwith "BlockSet must be an address"
       end   
 
   | BlockSet (e1, e2, e3) ->

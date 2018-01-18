@@ -12,37 +12,37 @@
 */
 
 def nil () =
-  val bk = new [1] in
+  let bk = new [1] in
   bk[0]:=0; /* tag */
-  bk end
+  bk
 
 def cons (x,l) =
-  val bk = new [3] in
+  let bk = new [3] in
   bk[0]:=1; /* tag */
   bk[1]:=x;
   bk[2]:=l;
-  bk end
+  bk
 
 def leaf (a) =
-  val bk = new [2] in
+  let bk = new [2] in
   bk[0]:=0; /* tag */
   bk[1]:=a;
-  bk end
+  bk
 
 def node (g,d) =
-  val bk = new [3] in
+  let bk = new [3] in
   bk[0]:=1; /* tag */
   bk[1]:=g;
   bk[2]:=d;
-  bk end
+  bk
 
 def concat (l1,l2) =
   if l1[0] = 0 then l2
-  else cons (l1[1], concat (l1[2],l2)) end
+  else cons (l1[1], concat (l1[2],l2))
 
 def tolist (t) =
   if t[0] = 0 then cons(t[1],nil())
-  else concat (tolist (t[1]), tolist (t[2])) end
+  else concat (tolist (t[1]), tolist (t[2]))
 
 val ex = (tolist (node (leaf (7), node (leaf (5), leaf (9)))))[1]
 /* answer: 7 */
