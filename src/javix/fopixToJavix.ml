@@ -104,17 +104,19 @@ let rec translate p env : T.t * environment =
 
   - Final answer:
     your code should contain a final [Ireturn] that should
-    return the value of the last DefineValue (supposed to be
+    return the value of the last DefVal (supposed to be
     an Integer).
 
   - Function Call Convention:
-    + The n arguments should be in jvm's variables 0,1,...(n-1).
-    + At least the variables that are reused after this call
-      should have their contents saved in stack before the call
-      and restored afterwards.
-    + Just before the function call, the return address should
-      be placed on the stack (via the encoding as number of this
-      return label, see Labels.encode).
+    + When a function starts, the stack should contain the
+      return address (a label encoded as a number, see Labels.encode)
+      then the n arguments of the function.
+    + The function could freely use an modify any variable. So at least
+      the variables that are reused after this call should have
+      their contents saved in stack before the call and restored
+      afterwards.
+    + The function starts by moving its arguments from the stack to
+      some variables.
     + When the function returns, the result should be on the top
       of the stack.
 

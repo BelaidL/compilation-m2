@@ -45,11 +45,10 @@ and expression = function
       ++ string "else"
       ++ group (expression f)
     )
-    ++ string "end"
-  | Def (x, e1, e2) ->
+  | Let (x, e1, e2) ->
     nest 2 (
       group (
-        group (string "val"
+        group (string "let"
                ++ identifier x
                ++ string "="
         )
@@ -58,7 +57,6 @@ and expression = function
       )
     )
     ++ group (expression e2)
-    ++ string "end"
   | FunCall (FunName f, es) ->
      string f ++ PPrintOCaml.tuple (List.map expression es)
   | FunCall (e, es) ->

@@ -1,3 +1,3 @@
-def fact(x) = if x = 0 then 1 else x * fact(x-1) end
+def fact(x) = if x = 0 then 1 else x * fact(x-1)
 val res = fact(10)
 /* answer: 3628800 */
