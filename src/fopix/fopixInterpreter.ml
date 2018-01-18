@@ -208,14 +208,35 @@ and expression runtime = function
       | _ -> failwith "BlockSet must be an address"
       end  
 
-  | FunCall (fexpr, args) ->
-    let vf = expression runtime fexpr in
-    (*let f e = expression runtime e in
-    let list_args = List.map f args in *)
-    match vf with
-    | _ -> failwith "TODO"
-    
+  | FunCall (e, el) ->
+      let vs = expressions runtime el in
+      begin match (expression runtime e) with
+      |VFun (fl, e) ->
+	  let run = formals runtime fl vs
+	      in expression run e
+      | _ -> assert false
+      end
+	      
+and expressions runtime es =
+  let rec aux vs runtime = function
+    | [] -> List.rev vs
+    | e :: es' ->
+	let v = expression runtime e in
+	aux (v :: vs) runtime es'
+  in aux [] runtime es
 
+and formal runtime f v =
+  { environment = Environment.bind runtime.environment f v }
+
+and formals runtime fl vl =
+  begin match fl, vl with
+  | [], [] -> runtime
+  | f :: fs, v :: vs ->
+      let run = formal runtime f v in
+      formals run fs vs
+  | _, _ -> failwith "error function definition formals"
+  end
+    
 and binop runtime op e1 e2 =
   let v1 = expression runtime e1 in
   let v2 = expression runtime e2 in
