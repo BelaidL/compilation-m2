@@ -11,7 +11,7 @@ type value =
   | VInt      of int
   | VBool     of bool
   | VLocation of Memory.location
-  | VFun      of function_identifier * formals * expression
+  | VFun      of formals * expression
 
 let print_value = function
   | VInt x      -> string_of_int x
@@ -19,7 +19,7 @@ let print_value = function
   | VBool false -> "false"
   | VUnit       -> "()"
   | VLocation l -> Memory.print_location l
-  | VFun (f,fl, e) -> f
+  | VFun (fl, e) -> "<fun>"
 
 type 'a coercion = value -> 'a option
 let value_as_int      = function VInt x -> Some x | _ -> None
@@ -131,9 +131,9 @@ and declaration runtime = function
   | DefVal (i, e) ->
     let v = expression runtime e in
     { environment = Environment.bind runtime.environment i v }
-  | DefFun (id, id_list, e) ->
-      
-    failwith "sedik it's yor job!"
+
+  | DefFun (id, fl, e) ->
+	{environment =  Environment.bind runtime.environment id (VFun (fl, e))}
 
 and expression runtime = function
   | Num n -> VInt n
