@@ -168,7 +168,7 @@ and expression runtime = function
       begin match v with
       | VInt x -> let adr = Memory.allocate memory x (VInt 0) in VLocation adr
       | _ -> Printf.printf "[expr]: expr should be evaluate to int!";
-	  assert false
+	      assert false
       end
 	
   | BlockGet (e1, e2) ->
@@ -176,10 +176,10 @@ and expression runtime = function
       let v1 = expression runtime e1 in
       begin match v1 with
       | VLocation adr ->
-	  begin match v with
-	  | VInt x -> Memory.read (Memory.dereference memory adr) x
-	  | _      -> failwith "error index"
-	  end
+      	  begin match v with
+      	  | VInt x -> Memory.read (Memory.dereference memory adr) x
+      	  | _      -> failwith "error index"
+      	  end
       | _ -> failwith "error address"
       end   
 
@@ -189,10 +189,10 @@ and expression runtime = function
       let v3 = expression runtime e3 in
       begin match v1 with
       | VLocation adr ->
-	  begin match v2 with
-	  | VInt x -> Memory.write (Memory.dereference memory adr) x v3; VUnit
-	  | _      -> failwith "error index"
-	  end
+      	  begin match v2 with
+      	  | VInt x -> Memory.write (Memory.dereference memory adr) x v3; VUnit
+      	  | _      -> failwith "error index"
+      	  end
       | _ -> failwith "error address"
       end  
 
