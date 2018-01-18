@@ -132,7 +132,7 @@ and declaration runtime = function
     let v = expression runtime e in
     { environment = Environment.bind runtime.environment i v }
   | DefFun _ ->
-    runtime
+    runtime (*TODO: To scan all the function and store it into environment *)
 
 and expression runtime = function
   | Num n -> VInt n
@@ -151,9 +151,9 @@ and expression runtime = function
   | IfThenElse (c, t, f) ->
       let v = expression runtime c in
       begin match value_as_bool v with
-      |None -> Printf.printf "Not valid if condition" ; assert false
-      |Some true  -> expression runtime t
-      |Some false -> expression runtime f
+      | None -> Printf.printf "Not a valid if condition" ; assert false
+      | Some true  -> expression runtime t
+      | Some false -> expression runtime f
       end
 
   | BinOp (Add|Sub|Mul|Div|Mod as op, e1, e2) ->
@@ -161,7 +161,6 @@ and expression runtime = function
 
   | BinOp (Lt|Gt|Le|Ge|Eq as op, e1, e2) ->
     binop runtime op e1 e2
-
 
   | BlockNew e ->
       let v = expression runtime e in
@@ -191,13 +190,18 @@ and expression runtime = function
       | VLocation adr ->
 	  begin match v2 with
 	  | VInt x -> Memory.write (Memory.dereference memory adr) x v3; VUnit
-	  | _      -> failwith "error index"
+	  | _      -> failwith "Incorrect address in VLocation of BlockSet"
 	  end
-      | _ -> failwith "error address"
+      | _ -> failwith "BlockSet must be an address"
       end  
 
   | FunCall (fexpr, args) ->
-    failwith "Student! This is your job!"
+    let vf = expression runtime fexpr in
+    (*let f e = expression runtime e in
+    let list_args = List.map f args in *)
+    match vf with
+    | _ -> failwith "TODO"
+    
 
 and binop runtime op e1 e2 =
   let v1 = expression runtime e1 in
