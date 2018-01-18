@@ -131,14 +131,9 @@ and declaration runtime = function
   | DefVal (i, e) ->
     let v = expression runtime e in
     { environment = Environment.bind runtime.environment i v }
-<<<<<<< HEAD
 
   | DefFun (id, fl, e) ->
 	{environment =  Environment.bind runtime.environment id (VFun (fl, e))}
-=======
-  | DefFun (id, id_list, e) ->
-    failwith "sedik it's yor job!"
->>>>>>> c29dfc2e366b87161a4b6ccf9a18e64c4cb3422b
 
 and expression runtime = function
   | Num n -> VInt n
