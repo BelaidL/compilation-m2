@@ -131,9 +131,14 @@ and declaration runtime = function
   | DefVal (i, e) ->
     let v = expression runtime e in
     { environment = Environment.bind runtime.environment i v }
+<<<<<<< HEAD
 
   | DefFun (id, fl, e) ->
 	{environment =  Environment.bind runtime.environment id (VFun (fl, e))}
+=======
+  | DefFun (id, id_list, e) ->
+    failwith "sedik it's yor job!"
+>>>>>>> c29dfc2e366b87161a4b6ccf9a18e64c4cb3422b
 
 and expression runtime = function
   | Num n -> VInt n
@@ -152,9 +157,9 @@ and expression runtime = function
   | IfThenElse (c, t, f) ->
       let v = expression runtime c in
       begin match value_as_bool v with
-      |None -> Printf.printf "Not valid if condition" ; assert false
-      |Some true  -> expression runtime t
-      |Some false -> expression runtime f
+      | None -> Printf.printf "Not a valid if condition" ; assert false
+      | Some true  -> expression runtime t
+      | Some false -> expression runtime f
       end
 
   | BinOp (Add|Sub|Mul|Div|Mod as op, e1, e2) ->
@@ -163,12 +168,11 @@ and expression runtime = function
   | BinOp (Lt|Gt|Le|Ge|Eq as op, e1, e2) ->
     binop runtime op e1 e2
 
-
   | BlockNew e ->
       let v = expression runtime e in
       begin match v with
       | VInt x -> let adr = Memory.allocate memory x (VInt 0) in VLocation adr
-      | _ -> Printf.printf "[expr]: expr should be evaluate to int!";
+      | _ -> Printf.printf "Expr should be evaluate to int!";
 	      assert false
       end
 	
@@ -179,9 +183,9 @@ and expression runtime = function
       | VLocation adr ->
       	  begin match v with
       	  | VInt x -> Memory.read (Memory.dereference memory adr) x
-      	  | _      -> failwith "error index"
+      	  | _      -> failwith "Incorrect address in VLocation of BlockSet"
       	  end
-      | _ -> failwith "error address"
+      | _ -> failwith "BlockSet must be an address"
       end   
 
   | BlockSet (e1, e2, e3) ->
@@ -190,15 +194,20 @@ and expression runtime = function
       let v3 = expression runtime e3 in
       begin match v1 with
       | VLocation adr ->
-      	  begin match v2 with
-      	  | VInt x -> Memory.write (Memory.dereference memory adr) x v3; VUnit
-      	  | _      -> failwith "error index"
-      	  end
-      | _ -> failwith "error address"
+	  begin match v2 with
+	  | VInt x -> Memory.write (Memory.dereference memory adr) x v3; VUnit
+	  | _      -> failwith "Incorrect address in VLocation of BlockSet"
+	  end
+      | _ -> failwith "BlockSet must be an address"
       end  
 
   | FunCall (fexpr, args) ->
-    failwith "Student! This is your job!"
+    let vf = expression runtime fexpr in
+    (*let f e = expression runtime e in
+    let list_args = List.map f args in *)
+    match vf with
+    | _ -> failwith "TODO"
+    
 
 and binop runtime op e1 e2 =
   let v1 = expression runtime e1 in
