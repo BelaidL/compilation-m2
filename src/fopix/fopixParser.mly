@@ -4,12 +4,13 @@
 
 %}
 
-%token VAL DEF IN END IF THEN ELSE EVAL UPPERSAND QMARK NEW
+%token VAL DEF IN LET IF THEN ELSE EVAL UPPERSAND QMARK NEW
 %token PLUS MINUS STAR SLASH GT GTE LT LTE EQUAL PERCENT
 %token LPAREN RPAREN LBRACKET RBRACKET ASSIGNS COMMA SEMICOLON EOF
 %token<int> INT
 %token<string> ID
 
+%nonassoc ELSE IN
 %right SEMICOLON
 %nonassoc ASSIGNS
 %nonassoc GT GTE LT LTE EQUAL
@@ -40,13 +41,13 @@ expr:
   x=INT                                          { Num x }
 | UPPERSAND f=ID                                 { FunName f }
 | x=ID                                           { Var x }
-| VAL x=ID EQUAL e1=expr IN e2=expr END          { Def (x, e1, e2) }
-| IF c=expr THEN t=expr ELSE f=expr END          { IfThenElse (c, t, f) }
+| LET x=ID EQUAL e1=expr IN e2=expr              { Let (x, e1, e2) }
+| IF c=expr THEN t=expr ELSE f=expr              { IfThenElse (c, t, f) }
 | l=expr b=binop r=expr                          { BinOp (b, l, r) }
 | e=expr LBRACKET i=expr RBRACKET                { BlockGet (e, i) }
 | e=expr LBRACKET i=expr RBRACKET ASSIGNS v=expr { BlockSet (e, i, v) }
 | NEW LBRACKET e=expr RBRACKET                   { BlockNew e }
-| e1=expr SEMICOLON e2=expr                      { Def ("_", e1, e2) }
+| e1=expr SEMICOLON e2=expr                      { Let ("_", e1, e2) }
 | LPAREN e=expr RPAREN                           { e }
 | QMARK LPAREN e=expr RPAREN LPAREN es=separated_list(COMMA, expr) RPAREN
                                                  { FunCall (e, es) }

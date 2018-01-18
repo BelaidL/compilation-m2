@@ -39,7 +39,7 @@ rule token = parse
   | "val"           { VAL  }
   | "in"            { IN   }
   | "def"           { DEF  }
-  | "end"           { END  }
+  | "let"           { LET  }
   | "if"            { IF   }
   | "then"          { THEN }
   | "else"          { ELSE }

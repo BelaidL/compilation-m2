@@ -10,7 +10,7 @@ and expression =
   | Num of int
   | FunName of function_identifier
   | Var of identifier
-  | Def of identifier * expression * expression
+  | Let of identifier * expression * expression
   | IfThenElse of expression * expression * expression
   | BinOp of binop * expression * expression
   | BlockNew of expression                           (* size *)

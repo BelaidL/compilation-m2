@@ -141,7 +141,7 @@ and expression runtime = function
 
   | Var x -> Environment.lookup x runtime.environment
 
-  | Def (x, ex, e) ->
+  | Let (x, ex, e) ->
     let v = expression runtime ex in
     let runtime =
      { environment = Environment.bind runtime.environment x v }
