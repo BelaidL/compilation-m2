@@ -36,7 +36,8 @@ OCAMLDOC = ocamldoc
 # Rules #
 #########
 
-.PHONY: all-generic byte opt doc clean dist install uninstall headers clear
+.PHONY: all-generic byte opt doc clean dist install uninstall headers	\
+	clear tests
 
 all-generic: clear $(STARGET) $(TARGET)
 
@@ -69,3 +70,6 @@ doc: byte
 	rm -f $(TARGET).docdir/style.css 2> /dev/null
 	mv $(TARGET).docdir/* doc/html
 	rm $(TARGET).docdir
+
+tests:
+	$(MAKE) -C tests check
