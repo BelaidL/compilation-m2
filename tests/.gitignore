@@ -1,0 +1,7 @@
+*.good-output
+*.good-res
+*.bad-output
+bad-counter
+bad-ok-counter
+good-counter
+good-ok-counter
