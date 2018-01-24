@@ -70,7 +70,6 @@ module Environment : sig
   val initial : t
   val bind    : t -> identifier -> value -> t
   exception UnboundIdentifier of identifier
-  val update : t -> identifier -> value -> t
   val lookup  : identifier -> t -> value
   val last    : t -> (identifier * value * t) option
   val print   : t -> string
@@ -83,10 +82,6 @@ end = struct
 
   exception UnboundIdentifier of identifier
 
-  let rec update e x v = match e with
-  | [] -> raise (UnboundIdentifier x)
-  | (x', v')::e' -> if x' = x then (x,v)::e' else update e' x v
-      
   let lookup x e =
     try
       List.assoc x e
@@ -138,14 +133,7 @@ and declaration runtime = function
     { environment = Environment.bind runtime.environment i v }
 
   | DefFun (id, fl, e) ->
-      let new_run = defineFun runtime (id, fl, e) in
-      defineFun new_run (id, fl, e) 
-
-and defineFun run (id, fl, e) = 
-      try
-	{environment = Environment.update run.environment id (VFun (fl, e))}
-      with Environment.UnboundIdentifier _ ->
-	{environment = Environment.bind run.environment id (VFun (fl, e))}
+      {environment = Environment.bind runtime.environment id (VFun (fl, e))}
       
 and expression runtime = function
   | Num n -> VInt n
