@@ -91,9 +91,38 @@ let basic_program code =
     T.varsize = 100;
     T.stacksize = 10000; }
 
+(* Idir: We translate a Fopix expression into a list of labelled Javix
+   instructions.  *)
+let rec translate_expression (expr : S.expression) (env : environment) :
+  T.labelled_instruction list =
+  match expr with
+  | S.Num i -> failwith "Teammates! This is our job!"
+
+  | S.FunName fun_id -> failwith "Teammates! This is our job!"
+
+  | S.Var id -> failwith "Teammates! This is our job!"
+
+  | S.Let (id, expr, expr') -> failwith "Teammates! This is our job!"
+
+  | S.IfThenElse (cond_expr, then_expr, else_expr) ->
+      failwith "Teammates! This is our job!"
+
+  | S.BinOp (binop, left_expr, right_expr) ->
+      failwith "Teammates! This is our job!"
+
+  | S.BlockNew size_expr -> failwith "Teammates! This is our job!"
+
+  | S.BlockGet (array_expr, index_expr) ->
+      failwith "Teammates! This is our job!"
+
+  | S.BlockSet (array_expr, index_expr, value_expr) ->
+      failwith "Teammates! This is our job!"
+
+  | S.FunCall (fun_expr, args) -> failwith "Teammates! This is our job!"
+
 (** [translate p env] turns a Fopix program [p] into a Javix program
     using [env] to retrieve contextual information. *)
-let rec translate p env : T.t * environment =
+let rec translate (p : S.t) (env : environment) : T.t * environment =
   failwith "Student! This is your job!"
 
 (** Remarks:
