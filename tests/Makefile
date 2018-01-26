@@ -16,7 +16,7 @@ install-test:
 build:
 	$(MAKE) -C ..
 
-check:	build announce
+check:	build install-test announce
 	@ for i in */*/bad */*/good; do				    \
 	  $(MAKE) --silent -C $$i check 2> /dev/null || true;		    \
 	done;
