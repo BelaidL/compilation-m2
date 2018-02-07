@@ -30,6 +30,10 @@ let initial_environment () = {
   function_formals = [];
 }
 
+let bind_function_label fun_id env = {
+  env with function_labels = (fun_id, T.Label fun_id) :: env.function_labels
+}
+
 (** [lookup_function_label f env] returns the label of [f] in [env]. *)
 let lookup_function_label f env =
   List.assoc f env.function_labels
@@ -85,6 +89,32 @@ module Labels :
    let all_encodings () = !allcodes
  end
 
+module Dispatcher : sig
+  val label : T.label
+
+  val code : unit -> T.labelled_instruction list
+end = struct
+  let label = T.Label "dispatch"
+
+  let base_value = 1000
+
+  let default_label =
+    let default_label = T.Label "default" in
+    default_label |> Labels.encode |> ignore;
+    default_label
+
+  let code () =
+    let labels =
+      Labels.all_encodings ()
+      |> List.sort (fun (c, _) (c', _) -> compare c c')
+      |> List.split
+      |> snd
+    in [(
+        Some label,
+        T.Tableswitch (base_value, labels, default_label)
+      )]
+end
+
 let basic_program code =
   { T.classname = "Fopix";
     T.code = code;
@@ -120,10 +150,34 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.FunCall (fun_expr, args) -> failwith "Teammates! This is our job!"
 
+(* Idir: We need to collect all the function labels in a first pass
+   because all the functions are mutually recursive in Fopix.  *)
+let collect_function_labels prog env =
+  let collect_function_label env = function
+    | S.DefFun (fun_id, _, _) -> bind_function_label fun_id env
+    | S.DefVal _ -> env
+  in
+  List.fold_left collect_function_label env prog
+
+(* Idir: We translate a Fopix definition into a list of labelled Javix
+   instructions and produce a new environment.  *)
+let translate_definition (definition : S.definition) (env : environment) :
+  (T.labelled_instruction list * environment) =
+  match definition with
+  | S.DefVal (id, expr) -> failwith "Teammates! This is our job!"
+  | S.DefFun (fun_id, formals, body) -> failwith "Teammates! This is our job!"
+
 (** [translate p env] turns a Fopix program [p] into a Javix program
     using [env] to retrieve contextual information. *)
-let rec translate (p : S.t) (env : environment) : T.t * environment =
-  failwith "Student! This is your job!"
+let translate (p : S.t) (env : environment) : T.t * environment =
+  let instrs, env =
+    List.fold_left (fun (code, env) def ->
+        let instrs, env = translate_definition def env in
+        (code @ instrs, env)
+      ) ([], collect_function_labels p env) p
+  in
+  let code = instrs @ Dispatcher.code () in
+  (basic_program code, env)
 
 (** Remarks:
   - When using this compiler from fopix to javix, flap will
