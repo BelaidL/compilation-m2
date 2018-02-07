@@ -105,7 +105,7 @@ and cmpop = function
   | Lt  -> "lt"
   | Le  -> "le"
   | Gt  -> "gt"
-  | Ge  -> "le"
+  | Ge  -> "ge"
 
 and push n =
   let s = string_of_int n in
