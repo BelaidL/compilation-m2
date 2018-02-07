@@ -133,7 +133,7 @@ let basic_program code =
 let rec translate_expression (expr : S.expression) (env : environment) :
   T.labelled_instruction list =
   match expr with
-  | S.Num i -> failwith "Teammates! This is our job!"
+  | S.Num i -> unlabelled_instrs [T.Bipush i; T.Box]
 
   | S.FunName fun_id -> failwith "Teammates! This is our job!"
 
