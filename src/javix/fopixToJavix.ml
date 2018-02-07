@@ -30,6 +30,8 @@ let initial_environment () = {
   function_formals = [];
 }
 
+let lookup_last_var env = T.Var (pred env.nextvar)
+
 let bind_function_label fun_id env = {
   env with function_labels = (fun_id, T.Label fun_id) :: env.function_labels
 }
@@ -50,6 +52,11 @@ let fresh_function_label =
   fun f ->
     incr r;
     T.Label (f ^ "_body_" ^ string_of_int !r)
+
+let unlabelled_instr (instr : T.instruction) : T.labelled_instruction =
+  (None, instr)
+
+let unlabelled_instrs instrs = List.map unlabelled_instr instrs
 
 (** Variables *)
 
@@ -176,7 +183,15 @@ let translate (p : S.t) (env : environment) : T.t * environment =
         (code @ instrs, env)
       ) ([], collect_function_labels p env) p
   in
-  let code = instrs @ Dispatcher.code () in
+  let code =
+    instrs @ unlabelled_instrs [
+      T.Comment "Return the value of the last variable";
+      T.Aload (lookup_last_var env);
+      T.Unbox;
+      T.Ireturn
+    ] @
+    Dispatcher.code ()
+  in
   (basic_program code, env)
 
 (** Remarks:
