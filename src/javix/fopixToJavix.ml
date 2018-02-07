@@ -171,7 +171,13 @@ let collect_function_labels prog env =
 let translate_definition (definition : S.definition) (env : environment) :
   (T.labelled_instruction list * environment) =
   match definition with
-  | S.DefVal (id, expr) -> failwith "Teammates! This is our job!"
+  | S.DefVal (id, expr) ->
+      let var, env = bind_variable env id in
+      let instrs =
+        translate_expression expr env @ unlabelled_instrs [T.Astore var]
+      in
+      (instrs, env)
+
   | S.DefFun (fun_id, formals, body) -> failwith "Teammates! This is our job!"
 
 (** [translate p env] turns a Fopix program [p] into a Javix program
