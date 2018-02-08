@@ -83,9 +83,7 @@ module Labels :
  sig
    val encode : T.label -> int
    val all_encodings : unit -> (int * T.label) list
- end
-=
- struct
+ end = struct
    let nextcode = ref 1000
    let allcodes = ref ([]:(int * T.label) list)
    let encode lab =
@@ -98,18 +96,14 @@ module Labels :
 
 module Dispatcher : sig
   val label : T.label
-
   val code : unit -> T.labelled_instruction list
 end = struct
   let label = T.Label "dispatch"
-
   let base_value = 1000
-
   let default_label =
     let default_label = T.Label "default" in
     default_label |> Labels.encode |> ignore;
     default_label
-
   let code () =
     let labels =
       Labels.all_encodings ()
@@ -122,23 +116,46 @@ end = struct
       )]
 end
 
+let new_label name =
+  let r = ref 0 in
+  fun () -> incr r; T.Label (name ^ string_of_int !r)
+
 let basic_program code =
   { T.classname = "Fopix";
     T.code = code;
     T.varsize = 100;
     T.stacksize = 10000; }
 
-let get_1st_label_from_code_blocks cbs = match (List.hd cbs) with
-  | Some(l), _ -> l
-  | None, _ -> failwith "No label found in the first instrction."
+let translate_binop op = 
+  let op' = (match op with
+  | S.Add -> T.Add
+  | S.Sub -> T.Sub
+  | S.Mul -> T.Mul
+  | S.Div -> T.Div
+  | S.Mod -> T.Rem
+  | _ -> failwith "Incorrect call. Binop is not an arithmetic operator") in
+  T.Binop(op')
 
-let get_1st_inst_from_code_blocks cbs = match (List.hd cbs) with
-  | _, inst -> inst
+let translate_cmpop op = match op with
+  | S.Eq -> T.Eq
+  | S.Le -> T.Le
+  | S.Lt -> T.Lt
+  | S.Ge -> T.Ge
+  | S.Gt -> T.Gt
+  | _ -> failwith "Incorrect call. Binop is not a comparision operator"
+
+let translate_binop_comp_with_new_label binop =
+  let to_label = new_label "cmpop" in
+  T.If_icmp((translate_cmpop binop), to_label)
+
+let get_if_true_label_from_cond_codes cbs = match (List.nth cbs (List.length cbs)-1 ) with
+  | _, (_, label) -> label
+  | _, _ -> failwith "Last instruction is not a comparision operator."
 
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
-  T.labelled_instruction list * environment =
+  T.labelled_instruction list =
   match expr with
   | S.Num i -> unlabelled_instrs [T.Bipush i; T.Box]
 
@@ -149,16 +166,23 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.Let (id, expr, expr') -> failwith "Teammates! This is our job!"
 
   | S.IfThenElse (cond_expr, then_expr, else_expr) ->
-    let cond_codes, env' = translate_expression cond_expr env in
-    let then_codes, _ = translate_expression then_expr env' in
-    let else_codes, _ = translate_expression else_expr env' in
-    let cmpop = get_1st_inst_from_code_blocks cond_codes in
-    let then_label = get_1st_label_from_code_blocks then_codes in
-    let else_label = get_1st_label_from_code_blocks else_codes in
-    (cond_codes@[Some(T.Label "If"), T.If_icmp(cmpop,then_label)]@then_codes@else_codes), env' 
+    let cond_codes  = translate_expression cond_expr env in
+    let then_codes = translate_expression then_expr env in
+    let else_codes = translate_expression else_expr env in
+    let if_true_label = get_if_true_label_from_cond_codes cond_codes in
+    let close_label = new_label "close" in
+    (cond_codes@else_codes@(unlabelled_instr T.Goto(close_label))@if_true_label@then_codes@(Some(close_label),T.Comment("end_if")))
 
-  | S.BinOp (binop, left_expr, right_expr) ->
-      failwith "Teammates! This is our job!"
+  | S.BinOp (binop, left_expr, right_expr) -> 
+    let insts_left = translate_expression left_expr env in
+    let insts_right = translate_expression right_expr env in
+    let op =
+    (
+      match binop with
+      | Add | Sub | Mul | Div | Mod -> translate_binop binop
+      | Eq | Le | Lt | Ge | Gt -> translate_binop_comp_with_new_label binop
+    ) in
+    insts_left@insts_right@(unlabelled_instr op)
 
   | S.BlockNew size_expr -> failwith "Teammates! This is our job!"
 
