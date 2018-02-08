@@ -91,10 +91,17 @@ let basic_program code =
     T.varsize = 100;
     T.stacksize = 10000; }
 
+let get_1st_label_from_code_blocks cbs = match (List.hd cbs) with
+  | Some(l), _ -> l
+  | None, _ -> failwith "No label found in the first instrction."
+
+let get_1st_inst_from_code_blocks cbs = match (List.hd cbs) with
+  | _, inst -> inst
+
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
-  T.labelled_instruction list =
+  T.labelled_instruction list * environment =
   match expr with
   | S.Num i -> failwith "Teammates! This is our job!"
 
@@ -105,7 +112,13 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.Let (id, expr, expr') -> failwith "Teammates! This is our job!"
 
   | S.IfThenElse (cond_expr, then_expr, else_expr) ->
-      failwith "Teammates! This is our job!"
+    let cond_codes, env' = translate_expression cond_expr env in
+    let then_codes, _ = translate_expression then_expr env' in
+    let else_codes, _ = translate_expression else_expr env' in
+    let cmpop = get_1st_inst_from_code_blocks cond_codes in
+    let then_label = get_1st_label_from_code_blocks then_codes in
+    let else_label = get_1st_label_from_code_blocks else_codes in
+    (cond_codes@[Some(T.Label "If"), T.If_icmp(cmpop,then_label)]@then_codes@else_codes), env' 
 
   | S.BinOp (binop, left_expr, right_expr) ->
       failwith "Teammates! This is our job!"
