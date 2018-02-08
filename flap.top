@@ -12,6 +12,9 @@
 #directory "_build/src/lib/pprint";;
 #directory "_build/src/fopix";;
 #directory "_build/src/javix";;
+#directory "_build/src/anfix";;
+#directory "_build/src/kontix";;
+#directory "_build/src/jakix";;
 #load "str.cma";;
 #load "unix.cma";;
 #load_rec "flap.cmo";;

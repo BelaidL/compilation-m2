@@ -29,7 +29,10 @@ and initialize_options () =
 
 and initialize_languages () =
   FopixInitialization.initialize ();
-  JavixInitialization.initialize ()
+  JavixInitialization.initialize ();
+  AnfixInitialization.initialize ();
+  KontixInitialization.initialize ();
+  JakixInitialization.initialize ()
 
 let get_source_target () =
   let source_language =
