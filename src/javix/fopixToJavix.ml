@@ -36,6 +36,10 @@ let bind_function_label fun_id env = {
   env with function_labels = (fun_id, T.Label fun_id) :: env.function_labels
 }
 
+let bind_function_formals fun_id formals env = {
+  env with function_formals = (fun_id, formals) :: env.function_formals
+}
+
 (** [lookup_function_label f env] returns the label of [f] in [env]. *)
 let lookup_function_label f env =
   List.assoc f env.function_labels
@@ -220,7 +224,22 @@ let translate_definition (definition : S.definition) (env : environment) :
       in
       (instrs, env)
 
-  | S.DefFun (fun_id, formals, body) -> failwith "Teammates! This is our job!"
+  | S.DefFun (fun_id, formals, body) ->
+      (* Idir: At the moment, I don't known what is the utility of
+         [function_formals] in the environment...  *)
+      let env =
+        env
+        |> clear_all_variables
+        |> bind_function_formals fun_id formals
+      in
+      let prolog = [] in
+      let epilog = [] in
+      let instrs =
+        prolog @
+        translate_expression body env @
+        epilog
+      in
+      (instrs, env)
 
 (** [translate p env] turns a Fopix program [p] into a Javix program
     using [env] to retrieve contextual information. *)
