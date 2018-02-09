@@ -1,3 +1,1 @@
-def id(x) = x
-
-val res = id(11)
+../../interpreter/good/fun1.fx

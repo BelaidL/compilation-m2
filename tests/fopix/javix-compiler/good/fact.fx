@@ -1,1 +1,1 @@
-../../../../examples/fact.fx
+../../interpreter/good/fact.fx

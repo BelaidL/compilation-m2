@@ -1,1 +1,1 @@
-../../../../examples/defdef.fx
+../../interpreter/good/defdef.fx

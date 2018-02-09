@@ -1,1 +1,1 @@
-../../../../examples/listmap.fx
+../../interpreter/good/listmap.fx

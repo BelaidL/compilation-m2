@@ -1,1 +1,1 @@
-val res = 2 * 3
+../../interpreter/good/binop2.fx

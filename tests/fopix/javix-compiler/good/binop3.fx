@@ -1,1 +1,1 @@
-val res = 10 - 1
+../../interpreter/good/binop3.fx

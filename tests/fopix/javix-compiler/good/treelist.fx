@@ -1,1 +1,1 @@
-../../../../examples/treelist.fx
+../../interpreter/good/treelist.fx

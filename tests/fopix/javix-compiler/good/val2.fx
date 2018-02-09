@@ -1,3 +1,1 @@
-val x = 42
-
-val res = x
+../../interpreter/good/val2.fx

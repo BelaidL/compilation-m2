@@ -1,1 +1,1 @@
-../../../../examples/factopt.fx
+../../interpreter/good/factopt.fx
