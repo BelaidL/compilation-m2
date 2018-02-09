@@ -1,1 +1,1 @@
-../../interpreter/good/val.fx
+../../interpreter/good/val1.fx

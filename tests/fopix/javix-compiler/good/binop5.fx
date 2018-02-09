@@ -1,1 +1,1 @@
-val res = 21 % 2
+../../interpreter/good/binop5.fx

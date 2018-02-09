@@ -1,1 +1,1 @@
-val res = 15 / 3
+../../interpreter/good/binop4.fx

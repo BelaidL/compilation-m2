@@ -1,1 +1,1 @@
-../../../../examples/ack.fx
+../../interpreter/good/ack.fx
