@@ -32,10 +32,6 @@ let initial_environment () = {
 
 let lookup_last_var env = T.Var (pred env.nextvar)
 
-let bind_function_label fun_id env = {
-  env with function_labels = (fun_id, T.Label fun_id) :: env.function_labels
-}
-
 let bind_function_formals fun_id formals env = {
   env with function_formals = (fun_id, formals) :: env.function_formals
 }
@@ -57,10 +53,23 @@ let fresh_function_label =
     incr r;
     T.Label (f ^ "_body_" ^ string_of_int !r)
 
+let bind_function_label fun_id env = {
+  env with
+  function_labels = (fun_id, fresh_function_label fun_id) :: env.function_labels
+}
+
 let unlabelled_instr (instr : T.instruction) : T.labelled_instruction =
   (None, instr)
 
 let unlabelled_instrs instrs = List.map unlabelled_instr instrs
+
+let labelled_instr label instr = (Some label, instr)
+
+(* Return a list of instructions with the given label on the first
+   instruction.  *)
+let labelled_instrs label = function
+  | [] -> []
+  | instr :: instrs -> labelled_instr label instr :: unlabelled_instrs instrs
 
 (** Variables *)
 
@@ -100,24 +109,29 @@ module Labels :
 
 module Dispatcher : sig
   val label : T.label
+
   val code : unit -> T.labelled_instruction list
 end = struct
   let label = T.Label "dispatch"
+
   let base_value = 1000
+
   let default_label =
-    let default_label = T.Label "default" in
+    let default_label = T.Label "crash" in
     default_label |> Labels.encode |> ignore;
     default_label
+
   let code () =
     let labels =
       Labels.all_encodings ()
-      |> List.sort (fun (c, _) (c', _) -> compare c c')
+      |> List.filter (fun (_, label) -> label <> default_label)
+      |> List.sort (fun (code, _) (code', _) -> compare code code')
       |> List.split
       |> snd
-    in [(
-        Some label,
-        T.Tableswitch (base_value, labels, default_label)
-      )]
+    in [
+      labelled_instr default_label (T.Comment "Let's crash...");
+      labelled_instr label (T.Tableswitch (base_value, labels, default_label))
+    ]
 end
 
 let new_label name =
@@ -215,6 +229,12 @@ let collect_function_labels prog env =
   in
   List.fold_left collect_function_label env prog
 
+let store_fun_args formals env =
+  List.fold_right (fun formal (instrs, env) ->
+      let var, env = bind_variable env formal in
+      (T.Astore var :: instrs, env)
+    ) formals ([], env)
+
 (* Idir: We translate a Fopix definition into a list of labelled Javix
    instructions and produce a new environment.  *)
 let translate_definition (definition : S.definition) (env : environment) :
@@ -230,38 +250,48 @@ let translate_definition (definition : S.definition) (env : environment) :
   | S.DefFun (fun_id, formals, body) ->
       (* Idir: At the moment, I don't known what is the utility of
          [function_formals] in the environment...  *)
-      let env =
-        env
-        |> clear_all_variables
-        |> bind_function_formals fun_id formals
+      let prolog, env =
+        let env =
+          env
+          |> clear_all_variables
+          |> bind_function_formals fun_id formals
+        in
+        store_fun_args formals env
       in
-      let prolog = [] in
-      let epilog = [] in
-      let instrs =
-        prolog @
-        translate_expression body env @
-        epilog
-      in
-      (instrs, env)
+      let prolog = labelled_instrs (lookup_function_label fun_id env) prolog in
+      let epilog = unlabelled_instrs [T.Swap; T.Goto Dispatcher.label] in
+      (prolog @ translate_expression body env @ epilog, env)
+
+let split_defs p =
+  List.fold_right (fun def (vals, defs) ->
+      match def with
+      | S.DefVal _ -> (def :: vals, defs)
+      | S.DefFun _ -> (vals, def :: defs)
+    ) p ([], [])
+
+let translate_definitions defs env =
+  List.fold_left (fun (code, env) def ->
+      let instrs, env = translate_definition def env in
+      (code @ instrs, env)
+    ) ([], env) defs
 
 (** [translate p env] turns a Fopix program [p] into a Javix program
     using [env] to retrieve contextual information. *)
 let translate (p : S.t) (env : environment) : T.t * environment =
-  let instrs, env =
-    List.fold_left (fun (code, env) def ->
-        let instrs, env = translate_definition def env in
-        (code @ instrs, env)
-      ) ([], collect_function_labels p env) p
+  let vals, defs = split_defs p in
+  let fun_codes, env =
+    translate_definitions defs (collect_function_labels p env)
   in
-  let code =
-    instrs @ unlabelled_instrs [
+  let main_code =
+    let main_instrs, env = translate_definitions vals env in
+    main_instrs @ unlabelled_instrs [
       T.Comment "Return the value of the last variable";
       T.Aload (lookup_last_var env);
       T.Unbox;
       T.Ireturn
-    ] @
-    Dispatcher.code ()
+    ]
   in
+  let code = main_code @ fun_codes @ Dispatcher.code () in
   (basic_program code, env)
 
 (** Remarks:
