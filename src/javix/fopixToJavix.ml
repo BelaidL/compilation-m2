@@ -146,11 +146,11 @@ let translate_cmpop op = match op with
 
 let translate_binop_comp_with_new_label binop =
   let to_label = new_label "cmpop" in
-  T.If_icmp((translate_cmpop binop), to_label)
+  T.If_icmp (translate_cmpop binop, to_label ())
 
-let get_if_true_label_from_cond_codes cbs = match (List.nth cbs (List.length cbs)-1 ) with
-  | _, (_, label) -> label
-  | _, _ -> failwith "Last instruction is not a comparision operator."
+(* let get_if_true_label_from_cond_codes cbs = match (List.nth cbs (List.length cbs)-1 ) with *)
+(*   | _, (_, label) -> label *)
+(*   | _, _ -> failwith "Last instruction is not a comparision operator." *)
 
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
@@ -169,20 +169,25 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     let cond_codes  = translate_expression cond_expr env in
     let then_codes = translate_expression then_expr env in
     let else_codes = translate_expression else_expr env in
-    let if_true_label = get_if_true_label_from_cond_codes cond_codes in
+    (* let if_true_label = get_if_true_label_from_cond_codes cond_codes in *)
     let close_label = new_label "close" in
-    (cond_codes@else_codes@(unlabelled_instr T.Goto(close_label))@if_true_label@then_codes@(Some(close_label),T.Comment("end_if")))
+    cond_codes @
+    else_codes @
+    unlabelled_instr (T.Goto (close_label ())) ::
+    (* if_true_label@ *)
+    then_codes @
+    [(Some (close_label ()), T.Comment "end_if")]
 
-  | S.BinOp (binop, left_expr, right_expr) -> 
+  | S.BinOp (binop, left_expr, right_expr) ->
     let insts_left = translate_expression left_expr env in
     let insts_right = translate_expression right_expr env in
     let op =
-    (
       match binop with
-      | Add | Sub | Mul | Div | Mod -> translate_binop binop
-      | Eq | Le | Lt | Ge | Gt -> translate_binop_comp_with_new_label binop
-    ) in
-    insts_left@insts_right@(unlabelled_instr op)
+      | S.Add | S.Sub | S.Mul | S.Div | S.Mod -> translate_binop binop
+      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
+          translate_binop_comp_with_new_label binop
+    in
+    insts_left @ insts_right @ [unlabelled_instr op]
 
   | S.BlockNew size_expr -> failwith "Teammates! This is our job!"
 
