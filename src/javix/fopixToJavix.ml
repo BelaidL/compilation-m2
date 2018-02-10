@@ -116,10 +116,7 @@ end = struct
 
   let base_value = 1000
 
-  let default_label =
-    let default_label = T.Label "crash" in
-    default_label |> Labels.encode |> ignore;
-    default_label
+  let default_label = T.Label "crash"
 
   let code () =
     let labels =
