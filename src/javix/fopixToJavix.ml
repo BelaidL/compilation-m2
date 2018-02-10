@@ -30,6 +30,11 @@ let initial_environment () = {
   function_formals = [];
 }
 
+let lookup_variable id env = 
+  try
+    List.assoc id env.variables
+  with Not_found -> failwith ("Error: Variable "^id^" note found")
+
 let lookup_last_var env = T.Var (pred env.nextvar)
 
 let bind_function_formals fun_id formals env = {
@@ -179,11 +184,15 @@ let get_if_true_label_from_cond_codes cbs =
 let rec translate_expression (expr : S.expression) (env : environment) :
   T.labelled_instruction list =
   match expr with
-  | S.Num i -> unlabelled_instrs [T.Bipush i; T.Box]
+  (* Belaid: We use Box before Astore so we didn't use it after Bipush*)
+  | S.Num i -> unlabelled_instrs [T.Bipush i]
 
   | S.FunName fun_id -> failwith "Teammates! This is our job!"
-
-  | S.Var id -> failwith "Teammates! This is our job!"
+  (* Belaid: We do Unbox instruction after all Aload instructions because Binop need Int *)
+  | S.Var id -> let v  = lookup_variable id env in 
+                unlabelled_instrs [
+                  T.Aload v;
+                  T.Unbox] 
 
   | S.Let (id, expr, expr') -> failwith "Teammates! This is our job!"
 
@@ -243,13 +252,16 @@ let translate_definition (definition : S.definition) (env : environment) :
   | S.DefVal (id, expr) ->
       let var, env = bind_variable env id in
       let instrs =
-        translate_expression expr env @ unlabelled_instrs [T.Astore var]
+        (* Belaid: We do Box instruction before all Astore instruction*)
+        translate_expression expr env @ unlabelled_instrs [T.Box; T.Astore var]
       in
       (instrs, env)
 
   | S.DefFun (fun_id, formals, body) ->
       (* Idir: At the moment, I don't known what is the utility of
-         [function_formals] in the environment...  *)
+         [function_formals] in the environment...  
+         Belaid: on aura besoin pour récupéré les argument d'une fonction
+         et meme vérifié si le nombre d'arg et le mm ... dans FunCall*)
       let prolog, env =
         let env =
           env
