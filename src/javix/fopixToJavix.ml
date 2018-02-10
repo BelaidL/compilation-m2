@@ -121,10 +121,7 @@ end = struct
 
   let base_value = 1000
 
-  let default_label =
-    let default_label = T.Label "crash" in
-    default_label |> Labels.encode |> ignore;
-    default_label
+  let default_label = T.Label "crash"
 
   let code () =
     let labels =
@@ -187,12 +184,15 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   (* Belaid: We use Box before Astore so we didn't use it after Bipush*)
   | S.Num i -> unlabelled_instrs [T.Bipush i]
 
-  | S.FunName fun_id -> failwith "Teammates! This is our job!"
   (* Belaid: We do Unbox instruction after all Aload instructions because Binop need Int *)
   | S.Var id -> let v  = lookup_variable id env in 
                 unlabelled_instrs [
                   T.Aload v;
                   T.Unbox] 
+
+  | S.FunName fun_id ->
+      let fun_label = lookup_function_label fun_id env in
+      [unlabelled_instr (T.Bipush (Labels.encode fun_label))]
 
   | S.Let (id, expr, expr') -> failwith "Teammates! This is our job!"
 
@@ -227,7 +227,28 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.BlockSet (array_expr, index_expr, value_expr) ->
       failwith "Teammates! This is our job!"
 
-  | S.FunCall (fun_expr, args) -> failwith "Teammates! This is our job!"
+  | S.FunCall (fun_expr, args) ->
+      let pass_fun_args args env =
+        List.flatten (List.map (fun arg -> translate_expression arg env) args)
+      in
+      let save_vars env =
+        List.map (fun (_, var) -> T.Aload var) env.variables
+      in
+      let restore_vars env =
+        List.flatten (
+          List.map (fun (_, var) -> [T.Swap; T.Astore var]) env.variables
+        )
+      in
+      let return_label = new_label "return" () in
+      unlabelled_instrs (save_vars env) @
+      unlabelled_instr (T.Bipush (Labels.encode return_label)) ::
+      pass_fun_args args env @
+      translate_expression fun_expr env @
+      unlabelled_instr (T.Goto Dispatcher.label) ::
+      labelled_instrs return_label (
+        T.Comment "Returned form the function call" ::
+        restore_vars env
+      )
 
 (* Idir: We need to collect all the function labels in a first pass
    because all the functions are mutually recursive in Fopix.  *)
@@ -262,7 +283,8 @@ let translate_definition (definition : S.definition) (env : environment) :
          [function_formals] in the environment...  
          Belaid: on aura besoin pour récupéré les argument d'une fonction
          et meme vérifié si le nombre d'arg et le mm ... dans FunCall*)
-      let prolog, env =
+
+      let prolog, env' =
         let env =
           env
           |> clear_all_variables
@@ -270,9 +292,20 @@ let translate_definition (definition : S.definition) (env : environment) :
         in
         store_fun_args formals env
       in
-      let prolog = labelled_instrs (lookup_function_label fun_id env) prolog in
-      let epilog = unlabelled_instrs [T.Swap; T.Goto Dispatcher.label] in
-      (prolog @ translate_expression body env @ epilog, env)
+      let prolog =
+        labelled_instrs (lookup_function_label fun_id env) (
+          T.Comment "Store the arguments in variables" ::
+          prolog
+        )
+      in
+      let epilog =
+        unlabelled_instrs [
+          T.Comment "Return of the function";
+          T.Swap;
+          T.Goto Dispatcher.label
+        ]
+      in
+      (prolog @ translate_expression body env' @ epilog, env)
 
 let split_defs p =
   List.fold_right (fun def (vals, defs) ->
