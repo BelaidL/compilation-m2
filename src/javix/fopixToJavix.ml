@@ -219,7 +219,10 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     in
     insts_left @ insts_right @ [unlabelled_instr op]
 
-  | S.BlockNew size_expr -> failwith "Teammates! This is our job!"
+  | S.BlockNew size_expr -> 
+     let size = translate_expression size_expr env in
+     size @ unlabelled_instrs [T.Anewarray]
+  (* failwith "Teammates! This is our job!" *)
 
   | S.BlockGet (array_expr, index_expr) ->
       failwith "Teammates! This is our job!"
@@ -265,18 +268,27 @@ let store_fun_args formals env =
       (T.Astore var :: instrs, env)
     ) formals ([], env)
 
+let define_value  id expr env = 
+      let var, env' = bind_variable env id in
+      let instrs =
+        (* Belaid: We do Box instruction before all Astore instruction if head stack is an Unboxed int*)
+        match expr with
+        | S.BlockNew i ->
+           translate_expression expr env @ unlabelled_instrs [T.Astore var]
+        | _ -> 
+           translate_expression expr env @ unlabelled_instrs [
+             T.Box;
+             T.Astore var]      
+      in
+      (instrs, env')
+
 (* Idir: We translate a Fopix definition into a list of labelled Javix
    instructions and produce a new environment.  *)
 let translate_definition (definition : S.definition) (env : environment) :
   (T.labelled_instruction list * environment) =
   match definition with
   | S.DefVal (id, expr) ->
-      let var, env = bind_variable env id in
-      let instrs =
-        (* Belaid: We do Box instruction before all Astore instruction*)
-        translate_expression expr env @ unlabelled_instrs [T.Box; T.Astore var]
-      in
-      (instrs, env)
+     define_value id expr env
 
   | S.DefFun (fun_id, formals, body) ->
       (* Idir: At the moment, I don't known what is the utility of
@@ -284,7 +296,7 @@ let translate_definition (definition : S.definition) (env : environment) :
          Belaid: on aura besoin pour récupéré les argument d'une fonction
          et meme vérifié si le nombre d'arg et le mm ... dans FunCall*)
 
-      let prolog, env' =
+      let prolog, env' = 
         let env =
           env
           |> clear_all_variables
