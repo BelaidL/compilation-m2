@@ -6,6 +6,7 @@
 %token COLON EOF
 %token<int> INT
 %token<string> ID COMMENT
+%token<string> STRING
 
 %start<JavixAST.t> program
 
@@ -62,6 +63,7 @@ instruction:
                        { let l = List.map (fun lab -> JavixAST.Label lab) l in
                          JavixAST.Tableswitch (i,l,JavixAST.Label lab) }
 | x=COMMENT            { JavixAST.Comment x }
+| s=STRING             { JavixAST.Print s }
 
 %inline located(X): x=X {
   (*Position.with_poss $startpos $endpos*) x

@@ -204,6 +204,9 @@ and expression runtime = function
 	      in expression run e
       | _ -> assert false
       end
+
+  | Print s ->
+     print_string s; VUnit
 	      
 and expressions runtime es =
   let rec aux vs runtime = function

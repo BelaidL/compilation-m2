@@ -33,6 +33,7 @@ and instruction =
        and jumps to the label number (k-n) in lablist if 0<=k-n<length(lablist),
        or jumps to labdefault otherwise *)
   | Checkarray (* checks that the top of stack is an array of java Objects *)
+  | Print of string
 
 and var = Var of int
 

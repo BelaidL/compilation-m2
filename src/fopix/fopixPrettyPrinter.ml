@@ -71,6 +71,7 @@ and expression = function
      string ":=" ++ group (expression e3)
   | BinOp (op,e1,e2) ->
      group (parens (expression e1 ++ string (binop op) ++ expression e2))
+  | Print s -> string ("\""^String.escaped s^"\"")
 
 and binop = function
   | Add -> "+"

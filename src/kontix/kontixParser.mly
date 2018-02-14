@@ -31,6 +31,7 @@ let mkcall f l startpos endpos =
 %token LPAREN RPAREN LBRACKET RBRACKET ASSIGNS COMMA SEMICOLON EOF
 %token<int> INT
 %token<string> ID
+%token<string> STRING
 
 %nonassoc ELSE IN
 %right SEMICOLON
@@ -75,6 +76,7 @@ basicexpr:
 | NEW LBRACKET e=basicexpr RBRACKET                { BlockNew (e) }
 | e1=basicexpr SEMICOLON e2=basicexpr              { Let ("_", e1, e2) }
 | LPAREN e=basicexpr RPAREN                        { e }
+| s=STRING                                         { Print s }
 
 tailexpr:
 | LET K COMMA E EQUAL UPPERSAND f=ID COMMA t=tuple IN e=tailexpr
