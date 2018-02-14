@@ -253,6 +253,9 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         restore_vars env
       )
 
+  | S.Print s -> failwith "Teammates! This is our job!"
+
+
 (* Idir: We need to collect all the function labels in a first pass
    because all the functions are mutually recursive in Fopix.  *)
 let collect_function_labels prog env =
