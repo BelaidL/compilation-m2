@@ -39,3 +39,4 @@ and expr : S.expression -> T.expression = function
   | S.BlockGet (e1,e2) -> T.BlockGet (simplexpr e1, simplexpr e2)
   | S.BlockSet (e1,e2,e3) -> T.BlockSet (simplexpr e1,simplexpr e2,simplexpr e3)
   | S.FunCall (e,el) -> T.FunCall (simplexpr e, List.map simplexpr el)
+  | S.Print s -> T.Print s

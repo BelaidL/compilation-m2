@@ -20,6 +20,7 @@ and expression =
   | BlockGet of simplexpr * simplexpr
   | BlockSet of simplexpr * simplexpr * simplexpr
   | FunCall of simplexpr * simplexpr list
+  | Print of string
 
 and simplexpr =
   | Num of int

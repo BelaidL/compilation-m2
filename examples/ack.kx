@@ -1,0 +1,9 @@
+def ack (K,E,n,m) =
+   if n = 0 then K(E,m+1)
+   else if m = 0 then ack (K,E,n-1,1)
+   else
+     let K,E = &aux,[K,E,n] in
+     ack (K,E,n,m-1)
+def aux ([K,E,n],r) = ack (K,E,n-1,r)
+eval ack(K,E,3,4)
+/* answer: 125 */

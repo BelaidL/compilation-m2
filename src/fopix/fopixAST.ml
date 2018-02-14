@@ -18,6 +18,7 @@ and expression =
   | BlockGet of expression * expression              (* array, index *)
   | BlockSet of expression * expression * expression (* array, index, value *)
   | FunCall of expression * expression list
+  | Print of string
 
 and identifier = string
 

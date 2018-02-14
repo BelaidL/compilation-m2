@@ -9,6 +9,7 @@
 %token LPAREN RPAREN LBRACKET RBRACKET ASSIGNS COMMA SEMICOLON EOF
 %token<int> INT
 %token<string> ID
+%token<string> STRING
 
 %nonassoc ELSE IN
 %right SEMICOLON
@@ -53,6 +54,7 @@ expr:
                                                  { FunCall (e, es) }
 | f=ID LPAREN es=separated_list(COMMA, expr) RPAREN
                                                  { FunCall (FunName f, es) }
+| s=STRING                                       { Print s }
 
 %inline binop:
   PLUS  { Add }

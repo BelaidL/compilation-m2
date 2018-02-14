@@ -19,6 +19,7 @@ and basicexpr =
   | BlockNew of basicexpr
   | BlockGet of basicexpr * basicexpr
   | BlockSet of basicexpr * basicexpr * basicexpr
+  | Print of string
 
 and tailexpr =
   | TLet of identifier * basicexpr * tailexpr

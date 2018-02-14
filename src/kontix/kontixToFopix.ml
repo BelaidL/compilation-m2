@@ -11,14 +11,17 @@ let fresh_id =
 
 let rec program (l,e) =
   List.map definition l @
-  [T.DefFun ("_return_",["x";"E"],T.Var "x");
-   T.DefVal ("res",tailexpr e)]
+  [T.DefFun ("_return_",["E";"x"],T.Var "x");
+   T.DefVal ("res",
+    T.Let("K",T.FunName "_return_",
+     T.Let("E",T.BlockNew (T.Num 0),
+      tailexpr e)))]
 
 and definition = function
   | S.DefFun (f,a,e) -> T.DefFun (f,"K"::"E"::a,tailexpr e)
   | S.DefCont (f,ids,x,e) ->
      let id = fresh_id "__env" in
-     T.DefFun (f,[x;id],untuple (T.Var id) 0 ("K"::"E"::ids) (tailexpr e))
+     T.DefFun (f,[id;x],untuple (T.Var id) 0 ("K"::"E"::ids) (tailexpr e))
 
 and tuple ids =
   let id = fresh_id "__blk" in
@@ -59,3 +62,4 @@ and basicexpr = function
   | S.BlockGet (e1,e2) -> T.BlockGet (basicexpr e1, basicexpr e2)
   | S.BlockSet (e1,e2,e3) ->
      T.BlockSet (basicexpr e1, basicexpr e2, basicexpr e3)
+  | S.Print s -> T.Print s

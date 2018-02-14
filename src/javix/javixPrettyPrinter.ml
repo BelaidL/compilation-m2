@@ -89,6 +89,11 @@ and instruction p = function
     (String.concat "\n\t" labs)^
     "\n\tdefault: "^dft
   | Checkarray -> "checkcast [Ljava/lang/Object;"
+  | Print s ->
+    "getstatic java/lang/System/out Ljava/io/PrintStream;\n\t" ^
+    "ldc \""^String.escaped s^"\"\n\t" ^
+    "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n\t" ^
+    "iconst_0"
 
 and var (Var v) = string_of_int v
 

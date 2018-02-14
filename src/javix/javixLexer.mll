@@ -71,5 +71,24 @@ rule token = parse
   | ":"             { COLON }
   | eof             { EOF }
 
+  (** String *)
+  | '"'             { read_string (Buffer.create 20) lexbuf }
+
   (** Lexing error. *)
   | _               { error lexbuf "unexpected character." }
+
+and read_string buf = parse
+  | '"'                   { STRING (Buffer.contents buf) }
+  | '\\' '\\'             { Buffer.add_char buf '\\';
+                            read_string buf lexbuf }
+  | '\\' 'n'              { Buffer.add_char buf '\n';
+                            read_string buf lexbuf }
+  | '\\' 't'              { Buffer.add_char buf '\t';
+                            read_string buf lexbuf }
+  | '\\' '"'              { Buffer.add_char buf '"';
+                            read_string buf lexbuf }
+  | ([^ '"' '\\']+  as c) { Buffer.add_string buf c;
+                            read_string buf lexbuf }
+  | eof                   { error lexbuf "String is not terminated." }
+  | _                     { error lexbuf ("Unexpected character in the string:" ^
+                                          Lexing.lexeme lexbuf) }

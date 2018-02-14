@@ -73,6 +73,7 @@ and basicexpr = function
      string ":=" ++ group (basicexpr e3)
   | BinOp (op,e1,e2) ->
      group (parens (basicexpr e1 ++ string (binop op) ++ basicexpr e2))
+  | Print s -> string ("\""^String.escaped s^"\"")
 
 and expression = function
   | TIfThenElse (c, t, f) ->

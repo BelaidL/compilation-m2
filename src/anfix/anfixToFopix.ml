@@ -20,6 +20,7 @@ and expr = function
   | S.BlockGet (e1,e2) -> T.BlockGet (simple e1,simple e2)
   | S.BlockSet (e1,e2,e3) -> T.BlockSet (simple e1,simple e2,simple e3)
   | S.FunCall (e,el) -> T.FunCall (simple e, List.map simple el)
+  | S.Print s -> T.Print s
 
 and simple = function
   | S.Num n -> T.Num n
