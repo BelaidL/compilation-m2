@@ -282,10 +282,10 @@ let collect_function_labels prog env =
   List.fold_left collect_function_label env prog
 
 let store_fun_args formals env =
-  List.fold_right (fun formal (instrs, env) ->
+  List.fold_left (fun (instrs, env) formal ->
       let var, env = bind_variable env formal in
       (T.Astore var :: instrs, env)
-    ) formals ([], env)
+    ) ([], env) formals
 
 let define_value  id expr env = 
       let var, env' = bind_variable env id in
