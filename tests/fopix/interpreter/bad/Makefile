@@ -6,6 +6,8 @@ FLAP_PATH = ../../../../
 
 PROGRAM = $(FLAP_PATH)/flap $(OPTIONS)
 
+TIMEOUT = 5
+
 -include ../../extension
 
 OPTIONS=$(shell if test -f options; then cat options; else echo ""; fi)
@@ -23,11 +25,13 @@ clean-expected:
 expected: clean-expected $(GOOD_EXPECTED)
 
 %.expected: %.$(EXT)
-	@ (timeout 2 $(PROGRAM) $< > $@) || (echo "$@ has failed."); touch $@
+	@ (timeout $(TIMEOUT) $(PROGRAM) $< > $@) ||	\
+		(echo "$@ has failed."); touch $@
 
 %.bad-output:%.$(EXT)
 	@ echo TEST >> bad-counter;					 \
-	(timeout 2 $(PROGRAM) $< 2> $@ 1> $@ && echo "[ KO ]   --> " $<	 \
+	(timeout $(TIMEOUT) $(PROGRAM) $< 2> $@ 1> $@ &&		 \
+		echo "[ KO ]   --> " $<					 \
 	" should have failed !")					 \
 	 || (echo "[XFAIL] " $<; echo 'XF' >> bad-ok-counter);
 	@ if [ x$$VERBOSE = x1 ]; then					 \
@@ -42,7 +46,7 @@ expected: clean-expected $(GOOD_EXPECTED)
 
 %.good-output:%.$(EXT)
 	@ (echo TEST >> good-counter);					 \
-	  ((timeout 2 $(PROGRAM) $< 1> $@ 2> $@)			 \
+	  ((timeout $(TIMEOUT) $(PROGRAM) $< 1> $@ 2> $@)		 \
 	&& (tail -n1 $@ | cut -f2 -d= | tr -d [:space:] > $*.good-res)   \
 	&& (diff -uwB $*.good-res $*.expected 1> /dev/null 2> /dev/null) \
 	  && (echo "[ OK ]  " $<; (echo "OK $@" >> good-ok-counter)))	 \
