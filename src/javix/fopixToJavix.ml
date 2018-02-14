@@ -132,7 +132,8 @@ end = struct
       |> snd
     in [
       labelled_instr default_label (T.Comment "Let's crash...");
-      labelled_instr label (T.Tableswitch (base_value, labels, default_label))
+      labelled_instr label T.Unbox;
+      unlabelled_instr (T.Tableswitch (base_value, labels, default_label))
     ]
 end
 
@@ -193,7 +194,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.FunName fun_id ->
       let fun_label = lookup_function_label fun_id env in
-      [unlabelled_instr (T.Bipush (Labels.encode fun_label))]
+      unlabelled_instrs [T.Bipush (Labels.encode fun_label); T.Box]
 
   | S.Let (id, expr, expr') ->
      let (var, env') = bind_variable env id in
@@ -259,7 +260,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       in
       let return_label = new_label "return" in
       unlabelled_instrs (save_vars env) @
-      unlabelled_instr (T.Bipush (Labels.encode return_label)) ::
+      unlabelled_instrs [T.Bipush (Labels.encode return_label); T.Box] @
       pass_fun_args args env @
       translate_expression fun_expr env @
       unlabelled_instr (T.Goto Dispatcher.label) ::
