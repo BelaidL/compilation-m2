@@ -176,28 +176,34 @@ let get_if_true_label_from_cond_codes cbs =
      |_ -> failwith "Last instruction is not If_icmp"
   )
 
+let box = [(None,T.Box)]
+let unbox = [(None,T.Unbox)]
+
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
   T.labelled_instruction list =
   match expr with
   (* Belaid: We use Box before Astore so we didn't use it after Bipush*)
-  | S.Num i -> unlabelled_instrs [T.Bipush i]
+  | S.Num i -> unlabelled_instrs [T.Bipush i; T.Box]
 
   (* Belaid: We do Unbox instruction after all Aload instructions because Binop need Int *)
   | S.Var id -> let v  = lookup_variable id env in 
-                unlabelled_instrs [
-                  T.Aload v;
-                  T.Unbox] 
+                unlabelled_instrs [T.Aload v;] 
 
   | S.FunName fun_id ->
       let fun_label = lookup_function_label fun_id env in
       [unlabelled_instr (T.Bipush (Labels.encode fun_label))]
 
-  | S.Let (id, expr, expr') -> failwith "Teammates! This is our job!"
+  | S.Let (id, expr, expr') ->
+     let (var, env') = bind_variable env id in
+     let instrs = 
+       translate_expression expr env @ unlabelled_instrs [T.Astore var] in
+     let instrs' = translate_expression expr' env' in
+     instrs @ instrs'
 
   | S.IfThenElse (cond_expr, then_expr, else_expr) ->
-    let cond_codes  = translate_expression cond_expr env in
+    let cond_codes = translate_expression cond_expr env in
     let then_codes = translate_expression then_expr env in
     let else_codes = translate_expression else_expr env in
     let if_true_label = get_if_true_label_from_cond_codes cond_codes in
@@ -205,30 +211,39 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     cond_codes @
     else_codes @
     unlabelled_instr (T.Goto close_label) ::
-    [(Some (if_true_label), T.Comment "then_start")]@
+    [(Some (if_true_label), T.Comment "then_start")] @
     then_codes @
     [(Some (close_label), T.Comment "end_if")]
 
   | S.BinOp (binop, left_expr, right_expr) ->
     let insts_left = translate_expression left_expr env in
     let insts_right = translate_expression right_expr env in
-    let op =
-      match binop with
-      | S.Add | S.Sub | S.Mul | S.Div | S.Mod -> translate_binop binop
-      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt -> translate_binop_comp_with_new_label binop
-    in
-    insts_left @ insts_right @ [unlabelled_instr op]
+    begin match binop with
+      | S.Add | S.Sub | S.Mul | S.Div | S.Mod -> 
+         let op = translate_binop binop in
+         insts_left @ unbox @ insts_right @ unbox @ [unlabelled_instr op] @ box
+
+      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
+         let op = translate_binop_comp_with_new_label binop in 
+         insts_left @ unbox @ insts_right @ unbox @ [unlabelled_instr op]
+    end
 
   | S.BlockNew size_expr -> 
      let size = translate_expression size_expr env in
-     size @ unlabelled_instrs [T.Anewarray]
-  (* failwith "Teammates! This is our job!" *)
+     size @ unbox @ unlabelled_instrs [T.Anewarray]
 
   | S.BlockGet (array_expr, index_expr) ->
-      failwith "Teammates! This is our job!"
+     let a_instrs = translate_expression array_expr env in
+     let i_instrs = translate_expression index_expr env in
+     a_instrs @ i_instrs @ unbox @
+     unlabelled_instrs [T.AAload] 
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
-      failwith "Teammates! This is our job!"
+     let a_instrs = translate_expression array_expr env in
+     let i_instrs = translate_expression index_expr env in
+     let v_instrs = translate_expression value_expr env in
+     [(None,T.Bipush 0)] @ box @ a_instrs @ i_instrs @ 
+       unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
@@ -272,13 +287,13 @@ let define_value  id expr env =
       let var, env' = bind_variable env id in
       let instrs =
         (* Belaid: We do Box instruction before all Astore instruction if head stack is an Unboxed int*)
-        match expr with
+       ( match expr with
         | S.BlockNew i ->
            translate_expression expr env @ unlabelled_instrs [T.Astore var]
         | _ -> 
            translate_expression expr env @ unlabelled_instrs [
-             T.Box;
-             T.Astore var]      
+            
+             T.Astore var] ) 
       in
       (instrs, env')
 

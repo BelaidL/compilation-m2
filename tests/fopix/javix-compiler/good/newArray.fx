@@ -1,2 +1,2 @@
-val t = new [4]
-val size = 4
+val x = let  tab = new[1] in tab[0]:=4 ; tab[0]
+
