@@ -254,7 +254,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       in
       let restore_vars env =
         List.flatten (
-          List.map (fun (_, var) -> [T.Swap; T.Box; T.Astore var]) env.variables
+          List.map (fun (_, var) -> [T.Swap; T.Astore var]) env.variables
         )
       in
       let return_label = new_label "return" () in
@@ -283,7 +283,7 @@ let collect_function_labels prog env =
 let store_fun_args formals env =
   List.fold_right (fun formal (instrs, env) ->
       let var, env = bind_variable env formal in
-      (T.Box :: T.Astore var :: instrs, env)
+      (T.Astore var :: instrs, env)
     ) formals ([], env)
 
 let define_value  id expr env = 
