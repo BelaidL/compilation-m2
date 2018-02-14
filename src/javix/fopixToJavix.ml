@@ -136,9 +136,9 @@ end = struct
     ]
 end
 
+let ref_count = ref 0
 let new_label name =
-  let r = ref 0 in
-  fun () -> incr r; T.Label (name ^ string_of_int !r)
+  incr ref_count; T.Label (name ^"_"^ string_of_int !ref_count)
 
 let basic_program code =
   { T.classname = "Fopix";
@@ -166,7 +166,7 @@ let translate_cmpop op = match op with
 
 let translate_binop_comp_with_new_label binop =
   let to_label = new_label "cmpop" in
-  T.If_icmp (translate_cmpop binop, to_label ())
+  T.If_icmp (translate_cmpop binop, to_label)
 
 let get_if_true_label_from_cond_codes cbs = 
   let last = List.nth cbs ((List.length cbs)-1) in match last with
@@ -201,7 +201,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     let then_codes = translate_expression then_expr env in
     let else_codes = translate_expression else_expr env in
     let if_true_label = get_if_true_label_from_cond_codes cond_codes in
-    let close_label = (new_label "close") () in
+    let close_label = new_label "close" in
     cond_codes @
     else_codes @
     unlabelled_instr (T.Goto close_label) ::
@@ -242,7 +242,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
           List.map (fun (_, var) -> [T.Swap; T.Astore var]) env.variables
         )
       in
-      let return_label = new_label "return" () in
+      let return_label = new_label "return" in
       unlabelled_instrs (save_vars env) @
       unlabelled_instr (T.Bipush (Labels.encode return_label)) ::
       pass_fun_args args env @
@@ -253,7 +253,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         restore_vars env
       )
 
-  | S.Print s -> failwith "Teammates! This is our job!"
+  | S.Print s -> [unlabelled_instr (T.Print s)]
 
 
 (* Idir: We need to collect all the function labels in a first pass
