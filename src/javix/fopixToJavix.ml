@@ -269,7 +269,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         restore_vars env
       )
 
-  | S.Print s -> [unlabelled_instr (T.Print s)]
+  | S.Print s -> unlabelled_instrs [(T.Print s);T.Box]
 
 
 (* Idir: We need to collect all the function labels in a first pass
@@ -291,13 +291,7 @@ let define_value  id expr env =
       let var, env' = bind_variable env id in
       let instrs =
         (* Belaid: We do Box instruction before all Astore instruction if head stack is an Unboxed int*)
-       ( match expr with
-        | S.BlockNew i ->
            translate_expression expr env @ unlabelled_instrs [T.Astore var]
-        | _ -> 
-           translate_expression expr env @ unlabelled_instrs [
-            
-             T.Astore var] ) 
       in
       (instrs, env')
 
