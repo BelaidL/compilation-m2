@@ -190,7 +190,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   (* Belaid: We do Unbox instruction after all Aload instructions because Binop need Int *)
   | S.Var id -> let v  = lookup_variable id env in 
-                unlabelled_instrs [T.Aload v;] 
+                unlabelled_instrs [T.Aload v] 
 
   | S.FunName fun_id ->
       let fun_label = lookup_function_label fun_id env in
@@ -236,15 +236,15 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.BlockGet (array_expr, index_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
-     a_instrs @ i_instrs @ unbox @
-     unlabelled_instrs [T.AAload] 
+     a_instrs @ [(None,T.Checkarray)] @ i_instrs @ 
+     unbox @ unlabelled_instrs [T.AAload] 
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
      let v_instrs = translate_expression value_expr env in
-     [(None,T.Bipush 0)] @ box @ a_instrs @ i_instrs @ 
-       unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
+     [(None,T.Bipush 0)] @ box @ a_instrs @ [(None,T.Checkarray)] 
+     @ i_instrs @ unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
