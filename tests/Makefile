@@ -6,6 +6,9 @@ announce:
 	@ if [ x$$VERBOSE != x1 ]; then \
 	    echo "HINT: set VERBOSE=1, to show tests inputs and results."; \
 	  fi
+	@ if [ x$$TRACE != x1 ]; then \
+	    echo "HINT: set TRACE=1, to trace the runtime state."; \
+	  fi
 
 install-test:
 	@ for i in */*/bad */*/good; do		\

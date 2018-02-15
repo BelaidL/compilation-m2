@@ -11,6 +11,11 @@ TIMEOUT = 5
 -include ../../extension
 
 OPTIONS=$(shell if test -f options; then cat options; else echo ""; fi)
+
+ifeq ($(TRACE), 1)
+	OPTIONS := $(OPTIONS) -V true
+endif
+
 BAD_INPUTS=$(shell if pwd | grep bad 1> /dev/null; \
 	     then find . -name "*.$(EXT)" | sort; fi)
 BAD_OUTPUTS=$(BAD_INPUTS:.$(EXT)=.bad-output)
