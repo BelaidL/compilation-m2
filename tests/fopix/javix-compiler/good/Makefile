@@ -93,7 +93,7 @@ announce:
 check: announce clean-silent good bad
 
 clean:
-	$(RM) --force *.good-output *.good-res *.bad-output *.j *counter *~
+	$(RM) --force *.good-output *.good-res *.bad-output *counter *~
 
 clean-silent:
 	@ $(RM) --force *.good-output *.good-res *.bad-output *counter *~

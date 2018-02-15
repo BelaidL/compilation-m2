@@ -231,11 +231,13 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.BlockNew size_expr -> 
      let size = translate_expression size_expr env in
+     [(None,T.Comment "builds an array of java Objects")] @
      size @ unbox @ unlabelled_instrs [T.Anewarray]
 
   | S.BlockGet (array_expr, index_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
+     [(None,T.Comment "array access: array[index]")] @
      a_instrs @ [(None,T.Checkarray)] @ i_instrs @ 
      unbox @ unlabelled_instrs [T.AAload] 
 
@@ -243,6 +245,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
      let v_instrs = translate_expression value_expr env in
+     [(None,T.Comment "array modifiacation: array[index] = value")] @
      [(None,T.Bipush 0)] @ box @ a_instrs @ [(None,T.Checkarray)] 
      @ i_instrs @ unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
 
