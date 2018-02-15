@@ -194,7 +194,9 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.FunName fun_id ->
       let fun_label = lookup_function_label fun_id env in
-      unlabelled_instrs [T.Bipush (Labels.encode fun_label); T.Box]
+      unlabelled_instrs [
+        T.Comment ("Push the encoded label of the function " ^ fun_id);
+        T.Bipush (Labels.encode fun_label); T.Box]
 
   | S.Let (id, expr, expr') ->
      let (var, env') = bind_variable env id in
@@ -251,6 +253,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
+        unlabelled_instr (T.Comment "Pass function arguments") ::
         List.flatten (List.map (fun arg -> translate_expression arg env) args)
       in
       let save_vars env =
@@ -262,9 +265,17 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         )
       in
       let return_label = new_label "return" in
-      unlabelled_instrs (save_vars env) @
-      unlabelled_instrs [T.Bipush (Labels.encode return_label); T.Box] @
+      unlabelled_instrs (
+        T.Comment "Save variables onto the stack" ::
+        save_vars env
+      ) @
+      unlabelled_instrs [
+        T.Comment "Save the return address";
+        T.Bipush (Labels.encode return_label);
+        T.Box
+      ] @
       pass_fun_args args env @
+      unlabelled_instr (T.Comment "Compute the function to call") ::
       translate_expression fun_expr env @
       unlabelled_instr (T.Goto Dispatcher.label) ::
       labelled_instrs return_label (
@@ -333,7 +344,13 @@ let translate_definition (definition : S.definition) (env : environment) :
           T.Goto Dispatcher.label
         ]
       in
-      (prolog @ translate_expression body env' @ epilog, env)
+      let instrs =
+        prolog @
+        unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
+        translate_expression body env' @
+        epilog
+      in
+      (instrs, env)
 
 let split_defs p =
   List.fold_right (fun def (vals, defs) ->
