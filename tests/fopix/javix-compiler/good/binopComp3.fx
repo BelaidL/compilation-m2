@@ -1,1 +1,1 @@
-val x = if 8 >= 2 then 1 else 0
+../../interpreter/good/binopComp3.fx

@@ -1,1 +1,1 @@
-val x = if 1 < 2 then 10 else 0
+../../interpreter/good/binopComp.fx

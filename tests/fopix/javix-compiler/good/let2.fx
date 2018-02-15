@@ -1,1 +1,1 @@
-val x = let y = 2 in y 
+../../interpreter/good/let2.fx

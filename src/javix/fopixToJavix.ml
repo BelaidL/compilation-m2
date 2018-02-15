@@ -258,7 +258,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       in
       let restore_vars env =
         List.flatten (
-          List.map (fun (_, var) -> [T.Swap; T.Astore var]) env.variables
+          List.map (fun (_, var) -> [T.Swap; T.Astore var]) (List.rev env.variables)
         )
       in
       let return_label = new_label "return" in
