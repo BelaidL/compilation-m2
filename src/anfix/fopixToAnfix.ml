@@ -84,12 +84,18 @@ and expr : S.expression -> T.expression = function
       )
   | S.Print s -> T.Print s
 
+(* Simplify the Fopix expression [e] (if necessary) and then build
+   a more complex expression by applying [f] to the simplification of
+   [e].  *)
 and simplify_expr (e : S.expression) (f : T.simplexpr -> T.expression) :
   T.expression =
   match fresh_identifier_opt e with
   | None -> f (simplexpr e)
   | Some id -> T.Let (id, expr e, f (T.Var id))
 
+(* Simplify the Fopix expressions [es] (if necessary) and then build
+   a more complex expression by applying [f] to the simplifications of
+   [es].  *)
 and simplify_exprs (es : S.expression list)
     (f : T.simplexpr list -> T.expression) : T.expression =
   let ids = List.map fresh_identifier_opt es in
