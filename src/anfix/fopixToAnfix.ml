@@ -23,8 +23,6 @@ let fresh_name_generator prefix =
 
 let fresh_identifier = fresh_name_generator "_x"
 
-let fresh_function_identifier = fresh_name_generator "_f"
-
 (* Return true iff the given Fopix expression is already simple.  *)
 let is_simple = function
   | S.Num _ | S.FunName _ | S.Var _ -> true
