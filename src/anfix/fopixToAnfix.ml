@@ -25,6 +25,15 @@ let fresh_identifier = fresh_name_generator "_x"
 
 let fresh_function_identifier = fresh_name_generator "_f"
 
+(* Return true iff the given Fopix expression is already simple.  *)
+let is_simple = function
+  | S.Num _ | S.FunName _ | S.Var _ -> true
+  | _ -> false
+
+(* Return a fresh identifier iff the Fopix expression [e] is simple.  *)
+let fresh_identifier_opt e =
+  if is_simple e then None else Some (fresh_identifier ())
+
 let rec program l = List.map definition l
 
 and definition = function
@@ -48,5 +57,31 @@ and expr : S.expression -> T.expression = function
   | S.BlockNew e -> T.BlockNew (simplexpr e)
   | S.BlockGet (e1,e2) -> T.BlockGet (simplexpr e1, simplexpr e2)
   | S.BlockSet (e1,e2,e3) -> T.BlockSet (simplexpr e1,simplexpr e2,simplexpr e3)
-  | S.FunCall (e,el) -> T.FunCall (simplexpr e, List.map simplexpr el)
+  | S.FunCall (e,el) ->
+      simplify_expr e (fun f ->
+          simplify_exprs el (fun xs ->
+              T.FunCall (f, xs)
+            )
+        )
   | S.Print s -> T.Print s
+
+and simplify_expr (e : S.expression) (f : T.simplexpr -> T.expression) :
+  T.expression =
+  match fresh_identifier_opt e with
+  | None -> f (simplexpr e)
+  | Some id -> T.Let (id, expr e, f (T.Var id))
+
+and simplify_exprs (es : S.expression list)
+    (f : T.simplexpr list -> T.expression) : T.expression =
+  let ids = List.map fresh_identifier_opt es in
+  let simplexprs = List.map2 (fun id e ->
+      match id with
+      | None -> simplexpr e
+      | Some id -> T.Var id
+    ) ids es
+  in
+  List.fold_right2 (fun id e acc ->
+      match id with
+      | None -> acc
+      | Some id -> T.Let (id, expr e, acc)
+    ) ids es (f simplexprs)
