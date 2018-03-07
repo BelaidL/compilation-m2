@@ -1,0 +1,1 @@
+../../interpreter/good/binopComp3.fx
