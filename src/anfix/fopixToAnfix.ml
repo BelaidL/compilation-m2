@@ -52,7 +52,8 @@ and expr : S.expression -> T.expression = function
   | S.FunName f -> T.Simple (T.FunName f)
   | S.Var x -> T.Simple (T.Var x)
   | S.Let (x,e1,e2) -> T.Let (x, expr e1, expr e2)
-  | S.IfThenElse (e1,e2,e3) -> T.IfThenElse (simplexpr e1, expr e2, expr e3)
+  | S.IfThenElse (e1,e2,e3) -> 
+      simplify_expr e1 (fun x -> T.IfThenElse(x, expr e2, expr e3))
   | S.BinOp (b,e1,e2) ->
       simplify_expr e1 (fun x1 -> 
           simplify_expr e2 (fun x2 ->
