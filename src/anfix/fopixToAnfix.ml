@@ -64,7 +64,13 @@ and expr : S.expression -> T.expression = function
           T.BlockNew (size)
       )
  (* T.BlockNew (simplexpr e) *)
-  | S.BlockGet (e1,e2) -> T.BlockGet (simplexpr e1, simplexpr e2)
+  | S.BlockGet (e1,e2) -> 
+      simplify_expr e1 (fun a ->
+          simplify_expr e2 (fun i ->
+              T.BlockGet (a,i)
+          )
+      )
+(* T.BlockGet (simplexpr e1, simplexpr e2) *)
   | S.BlockSet (e1,e2,e3) -> T.BlockSet (simplexpr e1,simplexpr e2,simplexpr e3)
   | S.FunCall (e,el) ->
       simplify_expr e (fun f ->
