@@ -71,7 +71,15 @@ and expr : S.expression -> T.expression = function
           )
       )
 (* T.BlockGet (simplexpr e1, simplexpr e2) *)
-  | S.BlockSet (e1,e2,e3) -> T.BlockSet (simplexpr e1,simplexpr e2,simplexpr e3)
+  | S.BlockSet (e1,e2,e3) -> 
+      simplify_expr e1 (fun a -> 
+          simplify_expr e2 (fun i ->
+              simplify_expr e3 (fun e ->
+                  T.BlockSet (a,i,e)
+              )
+          )
+      )
+(* T.BlockSet (simplexpr e1,simplexpr e2,simplexpr e3) *)
   | S.FunCall (e,el) ->
       simplify_expr e (fun f ->
           simplify_exprs el (fun xs ->
