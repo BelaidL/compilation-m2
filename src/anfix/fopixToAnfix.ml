@@ -57,18 +57,21 @@ and expr : S.expression -> T.expression = function
       simplify_expr e1 (fun x1 -> 
           simplify_expr e2 (fun x2 ->
               T.BinOp(b, x1, x2)
-            )
-        )
- (* T.BinOp (b, simplexpr e1, simplexpr e2) *)
-  | S.BlockNew e -> T.BlockNew (simplexpr e)
+          )
+      )
+  | S.BlockNew e ->
+      simplify_expr e (fun size -> 
+          T.BlockNew (size)
+      )
+ (* T.BlockNew (simplexpr e) *)
   | S.BlockGet (e1,e2) -> T.BlockGet (simplexpr e1, simplexpr e2)
   | S.BlockSet (e1,e2,e3) -> T.BlockSet (simplexpr e1,simplexpr e2,simplexpr e3)
   | S.FunCall (e,el) ->
       simplify_expr e (fun f ->
           simplify_exprs el (fun xs ->
               T.FunCall (f, xs)
-            )
-        )
+          )
+      )
   | S.Print s -> T.Print s
 
 and simplify_expr (e : S.expression) (f : T.simplexpr -> T.expression) :
