@@ -1,4 +1,3 @@
-
 (** The abstract syntax tree for fopix programs. *)
 
 type program = definition list
