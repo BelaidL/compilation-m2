@@ -21,9 +21,10 @@
                   ---------    ---------------
                    acc term			tail i-c non terminal
 ```
- * 2eme methode:
+  * 2eme methode:
+
 ```ocaml
-	let rec tree2list attent: ('a tree list) t (acc: 'a list) *exemple ci-desous*
+	let rec tree2list attent: ('a tree list) t (acc: 'a list) (* exemple ci-desous *)
 	match t with                                    (*    tolist []  		 t  []       *)
 	| Node (g,d) -> tree2list (g::ettent) d acc     (*		tolist [t] 		 t2 []       *)
 	| Leaf x 		 ->                                 (*		tolist [3;t1] (4) []       *)
@@ -33,12 +34,13 @@
 	---------------------------------------------	  (*		tolist []			(1) [2;3;4]  *)
 	|		l'exemple dessus est non terminal 			|   (*	  || *)
 	---------------------------------------------		(*	 [1;2;3;4] (**deroulement**) *)
-                                                                  (**arbre1**)
+                                                                   (**arbre1**)
 ```
 
 * L'exemple du cour CPS
 
 (tjr l'xemple de tree2list)
+
 ```ocaml
   let rec concat l1 l2 = 
 	match l1 with
@@ -46,6 +48,7 @@
 	| x::l1 -> x:: (concat l1 l2)
 ```
  * mise de concat en CPS
+
 ```ocaml
   let rec concat K E l1 l2 = 
 	match l1 with
