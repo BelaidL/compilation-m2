@@ -26,14 +26,14 @@
 ```ocaml
 	let rec tree2list attent: ('a tree list) t (acc: 'a list) (* exemple ci-desous *)
 	match t with                                    (*    tolist []  		 t  []       *)
-	| Node (g,d) -> tree2list (g::ettent) d acc     (*		tolist [t] 		 t2 []       *)
-	| Leaf x 		 ->                                 (*		tolist [3;t1] (4) []       *)
-		match attent with                             (*		tolist [t1] 	(3) [4]      *)
-		| [] -> x::acc                                (*		tolist []			 t1 [3;4]    *)
-		| g::attent -> tree2list attent g (x::acc)    (*		tolist [1] 		(2) [3;4]    *) 
-	+---------------------------------------+		    (*		tolist []			(1) [2;3;4]  *)
-	|---l'exemple dessus est non terminal---|  		  (*	  || *)
-	+---------------------------------------+	  		(*	 [1;2;3;4] (**deroulement**) *)
+	| Node (g,d) -> tree2list (g::ettent) d acc     (*    tolist [t] 		 t2 []       *)
+	| Leaf x 		 ->                                 (*    tolist [3;t1] (4) []       *)
+		match attent with                             (*    tolist [t1] 	(3) [4]      *)
+		| [] -> x::acc                                (*    tolist []			 t1 [3;4]    *)
+		| g::attent -> tree2list attent g (x::acc)    (*    tolist [1] 		(2) [3;4]    *) 
+	+---------------------------------------+		    (*    tolist []			(1) [2;3;4]  *)
+	|---l'exemple dessus est non terminal---|  		  (*     || *)
+	+---------------------------------------+	  		(*   [1;2;3;4] (**deroulement**) *)
                                                                    (**arbre1**)
 ```
 
