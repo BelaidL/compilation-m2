@@ -32,7 +32,7 @@
 		| [] -> x::acc                                (*		tolist []			 t1 [3;4]    *)
 		| g::attent -> tree2list attent g (x::acc)    (*		tolist [1] 		(2) [3;4]    *) 
 	+---------------------------------------+		    (*		tolist []			(1) [2;3;4]  *)
-	|		l'exemple dessus est non terminal  	|  		  (*	  || *)
+	|---l'exemple dessus est non terminal---|  		  (*	  || *)
 	+---------------------------------------+	  		(*	 [1;2;3;4] (**deroulement**) *)
                                                                    (**arbre1**)
 ```
