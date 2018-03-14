@@ -10,8 +10,8 @@
 ```	
 **Recursion non terminal on veut la rendre terminal**
 
-* deux methode:
- * 1ere methode:
+# deux methode:
+* 1ere methode:
 
 ```ocaml
   let rec tree2list t acc = 
@@ -21,7 +21,7 @@
                   ---------    ---------------
                    acc term			tail i-c non terminal
 ```
-  * 2eme methode:
+* 2eme methode:
 
 ```ocaml
 	let rec tree2list attent: ('a tree list) t (acc: 'a list) (* exemple ci-desous *)
@@ -31,13 +31,13 @@
 		match attent with                             (*		tolist [t1] 	(3) [4]      *)
 		| [] -> x::acc                                (*		tolist []			 t1 [3;4]    *)
 		| g::attent -> tree2list attent g (x::acc)    (*		tolist [1] 		(2) [3;4]    *) 
-	---------------------------------------------	  (*		tolist []			(1) [2;3;4]  *)
-	|		l'exemple dessus est non terminal 			|   (*	  || *)
-	---------------------------------------------		(*	 [1;2;3;4] (**deroulement**) *)
+	---------------------------------------------   (*		tolist []			(1) [2;3;4]  *)
+	|		l'exemple dessus est non terminal       |   (*	  || *)
+	---------------------------------------------	  (*	 [1;2;3;4] (**deroulement**) *)
                                                                    (**arbre1**)
 ```
 
-* L'exemple du cour CPS
+# L'exemple du cour CPS
 
 (tjr l'xemple de tree2list)
 
@@ -47,7 +47,8 @@
 	| [] -> l2
 	| x::l1 -> x:: (concat l1 l2)
 ```
- * mise de concat en CPS
+
+* mise de concat en CPS
 
 ```ocaml
   let rec concat K E l1 l2 = 
@@ -60,7 +61,9 @@
 
   let aux (K,E,x) r = K E (x::r)
 ```
+
  * mise en CPS de tree2list
+
 ```ocaml 
   let rec tolist K E t =
 	match t with
