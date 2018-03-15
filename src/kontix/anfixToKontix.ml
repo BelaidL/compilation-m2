@@ -78,12 +78,38 @@ let rec translate_expression :
           assert false
     )
 
+(* Remark: At the moment, this function assumes that the order of the
+   value definitions in [vdefs] is the same as in the input Anfix
+   program, i.e. the function [split_program] preserves the order of
+   value definitions.
+
+   The idea of this function is to build an Anfix expression
+   representing the Anfix top-level value definitions in [vdefs] and
+   then compile this expression to Kontix.  More precisely:
+
+   if [vdefs = [(x_1, e_1); ...; (x_(n-1), e_(n-1)); (x_n, e_n)]], then
+   we build the following Anfix expression and compile it:
+
+   let x_1 = e_1 in
+   ...
+   let x_(n-1) = e_(n-1) in
+   e_n
+
+*)
 let build_main (vdefs : val_def list) : (T.tailexpr * T.definition list) =
-  failwith "TODO"
+  let main_expr =
+    match List.rev vdefs with
+    | [] -> failwith "No entry point"
+    | (_, final_expr) :: vdefs ->
+        List.fold_left (fun acc (x, e) -> S.Let (x, e, acc)) final_expr vdefs
+  in
+  translate_expression main_expr
 
 let translate_fun_def (fdef : fun_def) : T.definition list =
   failwith "TODO"
 
+(* Remark: With the current implementation of [build_main], the order of
+   value definitions must be preserved by this function.  *)
 let split_program (prog : S.t) : fun_def list * val_def list =
   failwith "TODO"
 
