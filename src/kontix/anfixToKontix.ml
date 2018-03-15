@@ -58,8 +58,9 @@ let rec translate_expression :
       match e with
       | S.Let _ -> failwith "TODO"
       | S.IfThenElse _ -> failwith "TODO"
-      | S.Simple _ | S.BinOp _ | S.BlockNew _ | S.BlockGet _ | S.BlockSet _
-      | S.FunCall _ | S.Print _ ->
+      | S.FunCall _ -> failwith "TODO"
+      | S.Simple _ | S.BinOp _ | S.BlockNew _ | S.BlockGet _ | S.BlockSet _ |
+        S.Print _ ->
           assert false
     )
 
