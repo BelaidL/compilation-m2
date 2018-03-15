@@ -11,8 +11,14 @@ type environment = unit (* TODO *)
 
 let initial_environment () = () (* TODO *)
 
+let fresh_id_generator prefix = 
+  let i = ref (-1) in
+  fun () -> 
+    incr i;
+    prefix^string_of_int !i
+
 (* Generate a fresh continuation function identifier.  *)
-let fresh_cont_id () : T.function_identifier = failwith "TODO"
+let fresh_cont_id : unit -> T.function_identifier = fresh_id_generator "_K" 
 
 type val_def = S.identifier * S.expression
 
@@ -46,9 +52,9 @@ let as_basicexpr : S.expression -> T.basicexpr option = function
   | S.Print _ -> failwith "TODO"
 
 let translate_simplexpr : S.simplexpr -> T.basicexpr = function
-  | S.Num _ -> failwith "TODO"
-  | S.FunName _ -> failwith "TODO"
-  | S.Var _ -> failwith "TODO"
+  | S.Num i -> T.Num i
+  | S.FunName f -> T.FunName f
+  | S.Var v -> T.Var v
 
 let rec translate_expression :
   S.expression -> T.tailexpr * T.definition list = fun e ->
