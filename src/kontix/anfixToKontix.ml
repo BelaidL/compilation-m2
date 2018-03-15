@@ -56,7 +56,21 @@ let rec translate_expression :
   | Some _ -> failwith "TODO"
   | None -> (
       match e with
-      | S.Let _ -> failwith "TODO"
+      | S.Let (x, e, e') ->
+          let ce', kdefs' = translate_expression e' in (
+            match as_basicexpr e with
+            | Some e -> (T.TLet (x, e, ce'), kdefs')
+            | None ->
+                let kid = fresh_cont_id () in
+                let fvs = (* The free variables of [e'] except [x] *)
+                  free_variables e'
+                  |> VarSet.remove x
+                  |> VarSet.elements
+                in
+                let ce, kdefs = translate_expression e in
+                let kdef = T.DefCont (kid, fvs, x, ce') in
+                (T.TPushCont (kid, fvs, ce), kdef :: kdefs @ kdefs')
+          )
       | S.IfThenElse _ -> failwith "TODO"
       | S.FunCall _ -> failwith "TODO"
       | S.Simple _ | S.BinOp _ | S.BlockNew _ | S.BlockGet _ | S.BlockSet _ |
