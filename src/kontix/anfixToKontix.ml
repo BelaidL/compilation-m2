@@ -14,7 +14,7 @@ let initial_environment () = () (* TODO *)
 (* Generate a fresh continuation function identifier.  *)
 let fresh_cont_id () : T.function_identifier = failwith "TODO"
 
-type val_def = S.function_identifier * S.expression
+type val_def = S.identifier * S.expression
 
 type fun_def = S.function_identifier * S.formals * S.expression
 
