@@ -40,21 +40,34 @@ let free_variables : S.expression -> VarSet.t = function
   | S.FunCall _ -> failwith "TODO"
   | S.Print _ -> failwith "TODO"
 
-let as_basicexpr : S.expression -> T.basicexpr option = function
-  | S.Simple _ -> failwith "TODO"
-  | S.Let _ -> failwith "TODO"
-  | S.IfThenElse _ -> failwith "TODO"
-  | S.BinOp _ -> failwith "TODO"
-  | S.BlockNew _ -> failwith "TODO"
-  | S.BlockGet _ -> failwith "TODO"
-  | S.BlockSet _ -> failwith "TODO"
-  | S.FunCall _ -> failwith "TODO"
-  | S.Print _ -> failwith "TODO"
-
 let translate_simplexpr : S.simplexpr -> T.basicexpr = function
   | S.Num i -> T.Num i
   | S.FunName f -> T.FunName f
   | S.Var v -> T.Var v
+
+let as_basicexpr : S.expression -> T.basicexpr option = function
+  | S.Simple e -> Some(translate_simplexpr e)
+  | S.Let _ -> None
+  | S.IfThenElse _ -> None
+  | S.BinOp (binop,e1,e2) -> 
+     let e1' = translate_simplexpr e1 in
+     let e2' = translate_simplexpr e2 in
+     Some(T.BinOp (binop,e1',e2'))
+
+  | S.BlockNew n -> Some(T.BlockNew (translate_simplexpr n))
+  | S.BlockGet (t,i) -> 
+     let t' = translate_simplexpr t in
+     let i' = translate_simplexpr i in
+     Some(T.BlockGet (t',i'))
+
+  | S.BlockSet (t,i,e) -> 
+     let t' = translate_simplexpr t in
+     let i' = translate_simplexpr i in
+     let e' = translate_simplexpr e in
+     Some(T.BlockSet (t',i',e'))
+
+  | S.FunCall _ -> None
+  | S.Print s -> Some(T.Print s)
 
 let rec translate_expression :
   S.expression -> T.tailexpr * T.definition list = fun e ->
