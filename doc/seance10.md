@@ -4,6 +4,45 @@ Notes de la séance 10 de Compil M2
 Au fait, n'oublier pas de calculer la hauteur de pile nécessaire
 pour exécuter votre code kontix.
 
+**Erratum** : comme vu ce matin en cours, le calcul de hauteur de pile
+max n'est pas si simple avec la convention actuelle d'appel de fonctions
+(qui est : arguments sur la pile lors du goto d'appel à une fonction,
+puis la fonction commence par stocker ces arguments dans les
+variables). L'exécution d'une fonction à n arguments commence donc
+avec n cases de pile, avant de revenir à 0, puis de faire les
+instructions du corps de f, qui finissent forcément par un FunCall ou
+ContCall. La pile est redevenue vide avant ce FunCall/ContCall, puis
+on met sur la pile les arguments de cet appel final concluant f.
+Mais le code de f peut contenir plusieurs de ces appels finaux s'ils
+sont chacuns dans une branche différente d'un if. Et donc la hauteur
+de pile à la fin de f peut dépendre de la branche où on est. Bref, on
+peut s'en sortir quand même, mais c'est tordu. Pire: le validateur
+de classes de la JVM n'aime pas non plus quand des goto se font avec
+des hauteurs de pile différentes, donc enlever le `-noverify` ne
+marche pas toujours comme promis.
+
+Au final, je recommande donc pour Jakix d'utiliser la convention
+d'appel suivante : arguments mis en place dans v0..v(n-1) *avant*
+le goto vers le code de la fonction. Comme ce changement intervient
+tardivement, il n'est pas obligatoire, juste fortement conseillé.
+En pratique, cela ne change que peu de choses: les `Astore` qui
+commençaient le code de chaque fonction sont maintenant placés avant
+les goto vers ces fonctions. Attention juste à faire ces `Astore` en
+derniers, vu que tout calcul ulterieur (p.ex. celui de la tête de
+la fonction dans le cas d'un `FunCall` général) se ferait avec des
+variables perturbées par les `Astore`.
+
+Avec cette convention d'appel là, on profite de deux propriétés très
+simples et très systématique lors du calcul des hauteurs de pile :
+ 
+  - Si on compile une tailexpr Kontix, l'exécution du code assembleur
+    obtenu va partir d'une pile vide et finir par une pile vide (au
+    moment de l'appel terminal de ce tailexpr).
+
+  - Si on compile une basicexpr Kontix, l'exécution de ce code va
+    finir avec une unique case de pile de plus qu'à son début (cette
+    case contenant le résultat du calcul de cette basicexpr).
+
 
 # Quelques optimisations possibles
 
