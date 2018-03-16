@@ -112,6 +112,14 @@ module Labels :
    let all_encodings () = !allcodes
  end
 
+let box_after instrs = instrs @ [T.Box]
+
+let bipush_box i = box_after [T.Bipush i]
+
+let unbox_before instrs = T.Unbox :: instrs
+
+let unbox_after instrs = instrs @ [unlabelled_instr T.Unbox]
+
 module Dispatcher : sig
   val label : T.label
 
@@ -130,11 +138,11 @@ end = struct
       |> List.sort (fun (code, _) (code', _) -> compare code code')
       |> List.split
       |> snd
-    in [
-      labelled_instr default_label (T.Comment "Let's crash...");
-      labelled_instr label T.Unbox;
-      unlabelled_instr (T.Tableswitch (base_value, labels, default_label))
-    ]
+    in
+    labelled_instr default_label (T.Comment "Let's crash...") ::
+    labelled_instrs label (
+      unbox_before [T.Tableswitch (base_value, labels, default_label)]
+    )
 end
 
 let new_label =
@@ -179,27 +187,23 @@ let get_if_true_label_from_cond_codes cbs =
       |_ -> failwith "Last instruction is not If_icmp"
     )
 
-let box = unlabelled_instr T.Box
-let unbox = unlabelled_instr T.Unbox
-
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
   T.labelled_instruction list =
   match expr with
-  (* Belaid: We use Box before Astore so we didn't use it after Bipush*)
-  | S.Num i -> unlabelled_instrs [T.Bipush i; T.Box]
+  | S.Num i -> unlabelled_instrs (bipush_box i)
 
-  (* Belaid: We do Unbox instruction after all Aload instructions because Binop need Int *)
   | S.Var id ->
       let v  = lookup_variable id env in
       unlabelled_instrs [T.Aload v]
 
   | S.FunName fun_id ->
       let fun_label = lookup_function_label fun_id env in
-      unlabelled_instrs [
-        T.Comment ("Push the encoded label of the function " ^ fun_id);
-        T.Bipush (Labels.encode fun_label); T.Box]
+      unlabelled_instrs (
+        T.Comment ("Push the encoded label of the function " ^ fun_id) ::
+        bipush_box (Labels.encode fun_label)
+      )
 
   | S.Let (id, expr, expr') ->
       let (var, env') = bind_variable env id in
@@ -227,39 +231,39 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       begin match binop with
       | S.Add | S.Sub | S.Mul | S.Div | S.Mod ->
           let op = translate_binop binop in
-          insts_left @ unbox :: insts_right @
-          unlabelled_instrs [T.Unbox; op; T.Box]
+          unbox_after insts_left @ unbox_after insts_right @
+          unlabelled_instrs (box_after [op])
 
       | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
           let op = translate_binop_comp_with_new_label binop in
-          insts_left @ unbox :: insts_right @
-          unlabelled_instrs [T.Unbox; op]
+          unbox_after insts_left @ unbox_after insts_right @
+          unlabelled_instrs [op]
       end
 
   | S.BlockNew size_expr ->
       let size = translate_expression size_expr env in
       unlabelled_instr (T.Comment "builds an array of java Objects") ::
-      size @ unlabelled_instrs [T.Unbox; T.Anewarray]
+      size @
+      unlabelled_instrs (unbox_before [T.Anewarray])
 
   | S.BlockGet (array_expr, index_expr) ->
       let a_instrs = translate_expression array_expr env in
       let i_instrs = translate_expression index_expr env in
       unlabelled_instr (T.Comment "array access: array[index]") ::
       a_instrs @ unlabelled_instr T.Checkarray :: i_instrs @
-      unlabelled_instrs [T.Unbox; T.AAload]
+      unlabelled_instrs (unbox_before [T.AAload])
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
       let a_instrs = translate_expression array_expr env in
       let i_instrs = translate_expression index_expr env in
       let v_instrs = translate_expression value_expr env in
-      unlabelled_instrs [
-        T.Comment "array modifiacation: array[index] = value";
-        T.Bipush 0;
-        T.Box
-      ] @
+      unlabelled_instrs (
+        T.Comment "array modifiacation: array[index] = value" ::
+        bipush_box 0
+      ) @
       a_instrs @
       unlabelled_instr T.Checkarray ::
-      i_instrs @ unbox :: v_instrs @ unlabelled_instrs [T.AAstore]
+      unbox_after i_instrs @ v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
@@ -272,11 +276,9 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       let prepare_fun_call return_label env =
         unlabelled_instrs (
           T.Comment "Save variables onto the stack" ::
-          save_vars env @ [
-            T.Comment "Save the return address";
-            T.Bipush (Labels.encode return_label);
-            T.Box
-          ]
+          save_vars env @
+          T.Comment "Save the return address" ::
+          bipush_box (Labels.encode return_label)
         )
       in
       let restore_vars env =
@@ -296,7 +298,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         restore_vars env
       )
 
-  | S.Print s -> unlabelled_instrs [(T.Print s);T.Box]
+  | S.Print s -> unlabelled_instrs (box_after [T.Print s])
 
 
 (* Idir: We need to collect all the function labels in a first pass
@@ -317,7 +319,6 @@ let store_fun_args formals env =
 let define_value  id expr env =
   let var, env' = bind_variable env id in
   let instrs =
-    (* Belaid: We do Box instruction before all Astore instruction if head stack is an Unboxed int*)
     translate_expression expr env @ unlabelled_instrs [T.Astore var]
   in
   (instrs, env')
@@ -387,12 +388,11 @@ let translate (p : S.t) (env : environment) : T.t * environment =
   in
   let main_code =
     let main_instrs, env = translate_definitions vals env in
-    main_instrs @ unlabelled_instrs [
-      T.Comment "Return the value of the last variable";
-      T.Aload (lookup_last_var env);
-      T.Unbox;
-      T.Ireturn
-    ]
+    main_instrs @ unlabelled_instrs (
+      T.Comment "Return the value of the last variable" ::
+      T.Aload (lookup_last_var env) ::
+      unbox_before [T.Ireturn]
+    )
   in
   let code = main_code @ fun_codes @ Dispatcher.code () in
   (basic_program code, env)
