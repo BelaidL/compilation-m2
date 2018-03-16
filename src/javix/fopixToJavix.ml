@@ -177,8 +177,8 @@ let get_if_true_label_from_cond_codes cbs =
      |_ -> failwith "Last instruction is not If_icmp"
   )
 
-let box = [(None,T.Box)]
-let unbox = [(None,T.Unbox)]
+let box = [unlabelled_instr T.Box]
+let unbox = [unlabelled_instr T.Unbox]
 
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
@@ -214,9 +214,9 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     cond_codes @
     else_codes @
     unlabelled_instr (T.Goto close_label) ::
-    [(Some (if_true_label), T.Comment "then_start")] @
+    [labelled_instr if_true_label (T.Comment "then_start")] @
     then_codes @
-    [(Some (close_label), T.Comment "end_if")]
+    [labelled_instr close_label (T.Comment "end_if")]
 
   | S.BinOp (binop, left_expr, right_expr) ->
     let insts_left = translate_expression left_expr env in
@@ -233,23 +233,26 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.BlockNew size_expr -> 
      let size = translate_expression size_expr env in
-     [(None,T.Comment "builds an array of java Objects")] @
+     [unlabelled_instr (T.Comment "builds an array of java Objects")] @
      size @ unbox @ unlabelled_instrs [T.Anewarray]
 
   | S.BlockGet (array_expr, index_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
-     [(None,T.Comment "array access: array[index]")] @
-     a_instrs @ [(None,T.Checkarray)] @ i_instrs @ 
+     [unlabelled_instr (T.Comment "array access: array[index]")] @
+     a_instrs @ [unlabelled_instr T.Checkarray] @ i_instrs @ 
      unbox @ unlabelled_instrs [T.AAload] 
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
      let v_instrs = translate_expression value_expr env in
-     [(None,T.Comment "array modifiacation: array[index] = value")] @
-     [(None,T.Bipush 0)] @ box @ a_instrs @ [(None,T.Checkarray)] 
-     @ i_instrs @ unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
+     [unlabelled_instr (
+         T.Comment "array modifiacation: array[index] = value"
+       )] @
+     [unlabelled_instr (T.Bipush 0)] @ box @ a_instrs @
+     [unlabelled_instr T.Checkarray] @
+     i_instrs @ unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
