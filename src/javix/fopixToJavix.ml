@@ -30,7 +30,7 @@ let initial_environment () = {
   function_formals = [];
 }
 
-let lookup_variable id env = 
+let lookup_variable id env =
   try
     List.assoc id env.variables
   with Not_found -> failwith ("Error: Variable "^id^" note found")
@@ -148,14 +148,14 @@ let basic_program code =
     T.varsize = 100;
     T.stacksize = 10000; }
 
-let translate_binop op = 
+let translate_binop op =
   let op' = (match op with
-  | S.Add -> T.Add
-  | S.Sub -> T.Sub
-  | S.Mul -> T.Mul
-  | S.Div -> T.Div
-  | S.Mod -> T.Rem
-  | _ -> failwith "Incorrect call. Binop is not an arithmetic operator") in
+      | S.Add -> T.Add
+      | S.Sub -> T.Sub
+      | S.Mul -> T.Mul
+      | S.Div -> T.Div
+      | S.Mod -> T.Rem
+      | _ -> failwith "Incorrect call. Binop is not an arithmetic operator") in
   T.Binop(op')
 
 let translate_cmpop op = match op with
@@ -170,13 +170,14 @@ let translate_binop_comp_with_new_label binop =
   let to_label = new_label "cmpop" in
   T.If_icmp (translate_cmpop binop, to_label)
 
-let get_if_true_label_from_cond_codes cbs = 
-  let last = List.nth cbs ((List.length cbs)-1) in match last with
-  | _, inst -> ( 
-     match inst with
-     | T.If_icmp (_, label) -> label
-     |_ -> failwith "Last instruction is not If_icmp"
-  )
+let get_if_true_label_from_cond_codes cbs =
+  let last = List.nth cbs ((List.length cbs)-1) in
+  match last with
+  | _, inst -> (
+      match inst with
+      | T.If_icmp (_, label) -> label
+      |_ -> failwith "Last instruction is not If_icmp"
+    )
 
 let box = unlabelled_instr T.Box
 let unbox = unlabelled_instr T.Unbox
@@ -190,8 +191,9 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.Num i -> unlabelled_instrs [T.Bipush i; T.Box]
 
   (* Belaid: We do Unbox instruction after all Aload instructions because Binop need Int *)
-  | S.Var id -> let v  = lookup_variable id env in 
-                unlabelled_instrs [T.Aload v] 
+  | S.Var id ->
+      let v  = lookup_variable id env in
+      unlabelled_instrs [T.Aload v]
 
   | S.FunName fun_id ->
       let fun_label = lookup_function_label fun_id env in
@@ -200,64 +202,64 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         T.Bipush (Labels.encode fun_label); T.Box]
 
   | S.Let (id, expr, expr') ->
-     let (var, env') = bind_variable env id in
-     let instrs = 
-       translate_expression expr env @ unlabelled_instrs [T.Astore var] in
-     let instrs' = translate_expression expr' env' in
-     instrs @ instrs'
+      let (var, env') = bind_variable env id in
+      let instrs =
+        translate_expression expr env @ unlabelled_instrs [T.Astore var] in
+      let instrs' = translate_expression expr' env' in
+      instrs @ instrs'
 
   | S.IfThenElse (cond_expr, then_expr, else_expr) ->
-    let cond_codes = translate_expression cond_expr env in
-    let then_codes = translate_expression then_expr env in
-    let else_codes = translate_expression else_expr env in
-    let if_true_label = get_if_true_label_from_cond_codes cond_codes in
-    let close_label = new_label "close" in
-    cond_codes @
-    else_codes @
-    unlabelled_instr (T.Goto close_label) ::
-    labelled_instr if_true_label (T.Comment "then_start") ::
-    then_codes @
-    labelled_instrs close_label [T.Comment "end_if"]
+      let cond_codes = translate_expression cond_expr env in
+      let then_codes = translate_expression then_expr env in
+      let else_codes = translate_expression else_expr env in
+      let if_true_label = get_if_true_label_from_cond_codes cond_codes in
+      let close_label = new_label "close" in
+      cond_codes @
+      else_codes @
+      unlabelled_instr (T.Goto close_label) ::
+      labelled_instr if_true_label (T.Comment "then_start") ::
+      then_codes @
+      labelled_instrs close_label [T.Comment "end_if"]
 
   | S.BinOp (binop, left_expr, right_expr) ->
-    let insts_left = translate_expression left_expr env in
-    let insts_right = translate_expression right_expr env in
-    begin match binop with
-      | S.Add | S.Sub | S.Mul | S.Div | S.Mod -> 
-         let op = translate_binop binop in
-         insts_left @ unbox :: insts_right @
-         unlabelled_instrs [T.Unbox; op; T.Box]
+      let insts_left = translate_expression left_expr env in
+      let insts_right = translate_expression right_expr env in
+      begin match binop with
+      | S.Add | S.Sub | S.Mul | S.Div | S.Mod ->
+          let op = translate_binop binop in
+          insts_left @ unbox :: insts_right @
+          unlabelled_instrs [T.Unbox; op; T.Box]
 
       | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
-         let op = translate_binop_comp_with_new_label binop in 
-         insts_left @ unbox :: insts_right @
-         unlabelled_instrs [T.Unbox; op]
-    end
+          let op = translate_binop_comp_with_new_label binop in
+          insts_left @ unbox :: insts_right @
+          unlabelled_instrs [T.Unbox; op]
+      end
 
-  | S.BlockNew size_expr -> 
-     let size = translate_expression size_expr env in
-     unlabelled_instr (T.Comment "builds an array of java Objects") ::
-     size @ unlabelled_instrs [T.Unbox; T.Anewarray]
+  | S.BlockNew size_expr ->
+      let size = translate_expression size_expr env in
+      unlabelled_instr (T.Comment "builds an array of java Objects") ::
+      size @ unlabelled_instrs [T.Unbox; T.Anewarray]
 
   | S.BlockGet (array_expr, index_expr) ->
-     let a_instrs = translate_expression array_expr env in
-     let i_instrs = translate_expression index_expr env in
-     unlabelled_instr (T.Comment "array access: array[index]") ::
-     a_instrs @ unlabelled_instr T.Checkarray :: i_instrs @
-     unlabelled_instrs [T.Unbox; T.AAload]
+      let a_instrs = translate_expression array_expr env in
+      let i_instrs = translate_expression index_expr env in
+      unlabelled_instr (T.Comment "array access: array[index]") ::
+      a_instrs @ unlabelled_instr T.Checkarray :: i_instrs @
+      unlabelled_instrs [T.Unbox; T.AAload]
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
-     let a_instrs = translate_expression array_expr env in
-     let i_instrs = translate_expression index_expr env in
-     let v_instrs = translate_expression value_expr env in
-     unlabelled_instrs [
-       T.Comment "array modifiacation: array[index] = value";
-       T.Bipush 0;
-       T.Box
-     ] @
-     a_instrs @
-     unlabelled_instr T.Checkarray ::
-     i_instrs @ unbox :: v_instrs @ unlabelled_instrs [T.AAstore]
+      let a_instrs = translate_expression array_expr env in
+      let i_instrs = translate_expression index_expr env in
+      let v_instrs = translate_expression value_expr env in
+      unlabelled_instrs [
+        T.Comment "array modifiacation: array[index] = value";
+        T.Bipush 0;
+        T.Box
+      ] @
+      a_instrs @
+      unlabelled_instr T.Checkarray ::
+      i_instrs @ unbox :: v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
@@ -312,13 +314,13 @@ let store_fun_args formals env =
       (T.Astore var :: instrs, env)
     ) ([], env) formals
 
-let define_value  id expr env = 
-      let var, env' = bind_variable env id in
-      let instrs =
-        (* Belaid: We do Box instruction before all Astore instruction if head stack is an Unboxed int*)
-           translate_expression expr env @ unlabelled_instrs [T.Astore var]
-      in
-      (instrs, env')
+let define_value  id expr env =
+  let var, env' = bind_variable env id in
+  let instrs =
+    (* Belaid: We do Box instruction before all Astore instruction if head stack is an Unboxed int*)
+    translate_expression expr env @ unlabelled_instrs [T.Astore var]
+  in
+  (instrs, env')
 
 (* Idir: We translate a Fopix definition into a list of labelled Javix
    instructions and produce a new environment.  *)
@@ -326,15 +328,15 @@ let translate_definition (definition : S.definition) (env : environment) :
   (T.labelled_instruction list * environment) =
   match definition with
   | S.DefVal (id, expr) ->
-     define_value id expr env
+      define_value id expr env
 
   | S.DefFun (fun_id, formals, body) ->
       (* Idir: At the moment, I don't known what is the utility of
-         [function_formals] in the environment...  
+         [function_formals] in the environment...
          Belaid: on aura besoin pour récupéré les argument d'une fonction
          et meme vérifié si le nombre d'arg et le mm ... dans FunCall*)
 
-      let prolog, env' = 
+      let prolog, env' =
         let env =
           env
           |> clear_all_variables
