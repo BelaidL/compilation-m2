@@ -177,8 +177,8 @@ let get_if_true_label_from_cond_codes cbs =
      |_ -> failwith "Last instruction is not If_icmp"
   )
 
-let box = [unlabelled_instr T.Box]
-let unbox = [unlabelled_instr T.Unbox]
+let box = unlabelled_instr T.Box
+let unbox = unlabelled_instr T.Unbox
 
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
@@ -214,9 +214,9 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     cond_codes @
     else_codes @
     unlabelled_instr (T.Goto close_label) ::
-    [labelled_instr if_true_label (T.Comment "then_start")] @
+    labelled_instr if_true_label (T.Comment "then_start") ::
     then_codes @
-    [labelled_instr close_label (T.Comment "end_if")]
+    labelled_instrs close_label [T.Comment "end_if"]
 
   | S.BinOp (binop, left_expr, right_expr) ->
     let insts_left = translate_expression left_expr env in
@@ -224,35 +224,39 @@ let rec translate_expression (expr : S.expression) (env : environment) :
     begin match binop with
       | S.Add | S.Sub | S.Mul | S.Div | S.Mod -> 
          let op = translate_binop binop in
-         insts_left @ unbox @ insts_right @ unbox @ [unlabelled_instr op] @ box
+         insts_left @ unbox :: insts_right @
+         unlabelled_instrs [T.Unbox; op; T.Box]
 
       | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
          let op = translate_binop_comp_with_new_label binop in 
-         insts_left @ unbox @ insts_right @ unbox @ [unlabelled_instr op]
+         insts_left @ unbox :: insts_right @
+         unlabelled_instrs [T.Unbox; op]
     end
 
   | S.BlockNew size_expr -> 
      let size = translate_expression size_expr env in
-     [unlabelled_instr (T.Comment "builds an array of java Objects")] @
-     size @ unbox @ unlabelled_instrs [T.Anewarray]
+     unlabelled_instr (T.Comment "builds an array of java Objects") ::
+     size @ unlabelled_instrs [T.Unbox; T.Anewarray]
 
   | S.BlockGet (array_expr, index_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
-     [unlabelled_instr (T.Comment "array access: array[index]")] @
-     a_instrs @ [unlabelled_instr T.Checkarray] @ i_instrs @ 
-     unbox @ unlabelled_instrs [T.AAload] 
+     unlabelled_instr (T.Comment "array access: array[index]") ::
+     a_instrs @ unlabelled_instr T.Checkarray :: i_instrs @
+     unlabelled_instrs [T.Unbox; T.AAload]
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
      let a_instrs = translate_expression array_expr env in
      let i_instrs = translate_expression index_expr env in
      let v_instrs = translate_expression value_expr env in
-     [unlabelled_instr (
-         T.Comment "array modifiacation: array[index] = value"
-       )] @
-     [unlabelled_instr (T.Bipush 0)] @ box @ a_instrs @
-     [unlabelled_instr T.Checkarray] @
-     i_instrs @ unbox @ v_instrs @ unlabelled_instrs [T.AAstore]
+     unlabelled_instrs [
+       T.Comment "array modifiacation: array[index] = value";
+       T.Bipush 0;
+       T.Box
+     ] @
+     a_instrs @
+     unlabelled_instr T.Checkarray ::
+     i_instrs @ unbox :: v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
@@ -262,21 +266,24 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       let save_vars env =
         List.map (fun (_, var) -> T.Aload var) env.variables
       in
+      let prepare_fun_call return_label env =
+        unlabelled_instrs (
+          T.Comment "Save variables onto the stack" ::
+          save_vars env @ [
+            T.Comment "Save the return address";
+            T.Bipush (Labels.encode return_label);
+            T.Box
+          ]
+        )
+      in
       let restore_vars env =
         List.flatten (
-          List.map (fun (_, var) -> [T.Swap; T.Astore var]) (List.rev env.variables)
+          List.map (fun (_, var) -> [T.Swap; T.Astore var])
+            (List.rev env.variables)
         )
       in
       let return_label = new_label "return" in
-      unlabelled_instrs (
-        T.Comment "Save variables onto the stack" ::
-        save_vars env
-      ) @
-      unlabelled_instrs [
-        T.Comment "Save the return address";
-        T.Bipush (Labels.encode return_label);
-        T.Box
-      ] @
+      prepare_fun_call return_label env @
       pass_fun_args args env @
       unlabelled_instr (T.Comment "Compute the function to call") ::
       translate_expression fun_expr env @
