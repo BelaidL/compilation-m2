@@ -75,21 +75,24 @@ let rec translate_expression :
   | Some e -> (T.TContCall e, [])
   | None -> (
       match e with
-      | S.Let (x, e, e') ->
-          let ce', kdefs' = translate_expression e' in (
-            match as_basicexpr e with
-            | Some e -> (T.TLet (x, e, ce'), kdefs')
-            | None ->
-                let kid = fresh_cont_id () in
-                let fvs = (* The free variables of [e'] except [x] *)
-                  free_variables e'
-                  |> VarSet.remove x
-                  |> VarSet.elements
-                in
-                let ce, kdefs = translate_expression e in
-                let kdef = T.DefCont (kid, fvs, x, ce') in
-                (T.TPushCont (kid, fvs, ce), kdef :: kdefs @ kdefs')
-          )
+      | S.Let (x, e, e') -> (
+          match as_basicexpr e, as_basicexpr e' with
+          | Some e, Some e' -> (T.TContCall (T.Let(x, e, e')), [])
+          | Some e, None ->
+              let ce', kdefs' = translate_expression e' in
+              (T.TLet (x, e, ce'), kdefs')
+          | _ ->
+              let kid = fresh_cont_id () in
+              let fvs = (* The free variables of [e'] except [x] *)
+                free_variables e'
+                |> VarSet.remove x
+                |> VarSet.elements
+              in
+              let ce, kdefs = translate_expression e in
+              let ce', kdefs' = translate_expression e' in
+              let kdef = T.DefCont (kid, fvs, x, ce') in
+              (T.TPushCont (kid, fvs, ce), kdef :: kdefs @ kdefs')
+        )
       | S.IfThenElse _ -> failwith "TODO"
       | S.FunCall _ -> failwith "TODO"
       | S.Simple _ | S.BinOp _ | S.BlockNew _ | S.BlockGet _ | S.BlockSet _ |
