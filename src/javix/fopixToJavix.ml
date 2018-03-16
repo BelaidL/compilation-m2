@@ -168,7 +168,7 @@ let translate_cmpop op = match op with
   | S.Lt -> T.Lt
   | S.Ge -> T.Ge
   | S.Gt -> T.Gt
-  | _ -> error "Incorrect call: Binop is not a comparision operator"
+  | _ -> error "Incorrect call: Binop is not a comparison operator"
 
 let translate_binop_comp_with_new_label binop =
   let to_label = new_label "cmpop" in
@@ -199,7 +199,7 @@ let restore_vars env =
   ExtStd.List.flat_map (fun (_, var) -> [T.Swap; T.Astore var])
     (List.rev env.variables)
 
-(* Idir: We translate a Fopix expression into a list of labelled Javix
+(* We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
   T.labelled_instruction list =
@@ -270,7 +270,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       let i_instrs = translate_expression index_expr env in
       let v_instrs = translate_expression value_expr env in
       unlabelled_instrs (
-        T.Comment "array modifiacation: array[index] = value" ::
+        T.Comment "array modification: array[index] = value" ::
         bipush_box 0
       ) @
       a_instrs @
@@ -342,7 +342,7 @@ let fun_epilog =
     T.Goto Dispatcher.label
   ]
 
-(* Idir: We translate a Fopix definition into a list of labelled Javix
+(* We translate a Fopix definition into a list of labelled Javix
    instructions and produce a new environment.  *)
 let translate_definition (definition : S.definition) (env : environment) :
   (T.labelled_instruction list * environment) =
@@ -372,8 +372,8 @@ let translate_definitions defs env =
 let translate (p : S.t) (env : environment) : T.t * environment =
   let vals, defs = split_defs p in
 
-  (* Idir: We need to collect all the function labels in a first pass
-     because all the functions are mutually recursive in Fopix.  *)
+  (* We need to collect all the function labels in a first pass because
+     all the functions are mutually recursive in Fopix.  *)
   let fun_codes, env =
     translate_definitions defs (collect_function_info p env)
   in
