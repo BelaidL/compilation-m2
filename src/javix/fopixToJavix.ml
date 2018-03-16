@@ -183,6 +183,22 @@ let get_if_true_label_from_cond_codes cbs =
       |_ -> error "Last instruction is not If_icmp"
     )
 
+let save_vars env =
+  unlabelled_instrs (
+    T.Comment "Save variables onto the stack" ::
+    List.map (fun (_, var) -> T.Aload var) env.variables
+  )
+
+let save_return_address return_label =
+  unlabelled_instrs (
+    T.Comment "Save the return address" ::
+    bipush_box (Labels.encode return_label)
+  )
+
+let restore_vars env =
+  ExtStd.List.flat_map (fun (_, var) -> [T.Swap; T.Astore var])
+    (List.rev env.variables)
+
 (* Idir: We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
@@ -262,31 +278,12 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       unbox_after i_instrs @ v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
-      let pass_fun_args args env =
-        unlabelled_instr (T.Comment "Pass function arguments") ::
-        ExtStd.List.flat_map (fun arg -> translate_expression arg env) args
-      in
-      let save_vars env =
-        List.map (fun (_, var) -> T.Aload var) env.variables
-      in
-      let prepare_fun_call return_label env =
-        unlabelled_instrs (
-          T.Comment "Save variables onto the stack" ::
-          save_vars env @
-          T.Comment "Save the return address" ::
-          bipush_box (Labels.encode return_label)
-        )
-      in
-      let restore_vars env =
-        ExtStd.List.flat_map (fun (_, var) -> [T.Swap; T.Astore var])
-          (List.rev env.variables)
-      in
+      (* TODO: Check if the number of arguments is OK.  *)
       let return_label = new_label "return" in
-      prepare_fun_call return_label env @
+      save_vars env @
+      save_return_address return_label @
       pass_fun_args args env @
-      unlabelled_instr (T.Comment "Compute the function to call") ::
-      translate_expression fun_expr env @
-      unlabelled_instr (T.Goto Dispatcher.label) ::
+      call_fun fun_expr env @
       labelled_instrs return_label (
         T.Comment "Returned form the function call" ::
         restore_vars env
@@ -294,15 +291,24 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.Print s -> unlabelled_instrs (box_after [T.Print s])
 
+and call_fun fun_expr env =
+  unlabelled_instr (T.Comment "Compute the function to call") ::
+  translate_expression fun_expr env @
+  unlabelled_instrs [T.Goto Dispatcher.label]
 
-(* Idir: We need to collect all the function labels in a first pass
-   because all the functions are mutually recursive in Fopix.  *)
-let collect_function_labels prog env =
-  let collect_function_label env = function
-    | S.DefFun (fun_id, _, _) -> bind_function_label fun_id env
+and pass_fun_args args env =
+  unlabelled_instr (T.Comment "Pass function arguments") ::
+  ExtStd.List.flat_map (fun arg -> translate_expression arg env) args
+
+let collect_function_info prog env =
+  let collect_function_info env = function
+    | S.DefFun (fun_id, formals, _) ->
+        env
+        |> bind_function_label fun_id
+        |> bind_function_formals fun_id formals
     | S.DefVal _ -> env
   in
-  List.fold_left collect_function_label env prog
+  List.fold_left collect_function_info env prog
 
 let store_fun_args formals env =
   List.fold_left (fun (instrs, env) formal ->
@@ -317,6 +323,25 @@ let define_value  id expr env =
   in
   (instrs, env')
 
+let fun_prolog fun_id formals env =
+  let instrs, env = store_fun_args formals (clear_all_variables env) in
+  (labelled_instrs (lookup_function_label fun_id env) (
+      T.Comment "Store the arguments in variables" ::
+      instrs
+    ),
+   env)
+
+let fun_body fun_id body env =
+  unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
+  translate_expression body env
+
+let fun_epilog =
+  unlabelled_instrs [
+    T.Comment "Return of the function";
+    T.Swap;
+    T.Goto Dispatcher.label
+  ]
+
 (* Idir: We translate a Fopix definition into a list of labelled Javix
    instructions and produce a new environment.  *)
 let translate_definition (definition : S.definition) (env : environment) :
@@ -326,39 +351,8 @@ let translate_definition (definition : S.definition) (env : environment) :
       define_value id expr env
 
   | S.DefFun (fun_id, formals, body) ->
-      (* Idir: At the moment, I don't known what is the utility of
-         [function_formals] in the environment...
-         Belaid: on aura besoin pour récupéré les argument d'une fonction
-         et meme vérifié si le nombre d'arg et le mm ... dans FunCall*)
-
-      let prolog, env' =
-        let env =
-          env
-          |> clear_all_variables
-          |> bind_function_formals fun_id formals
-        in
-        store_fun_args formals env
-      in
-      let prolog =
-        labelled_instrs (lookup_function_label fun_id env) (
-          T.Comment "Store the arguments in variables" ::
-          prolog
-        )
-      in
-      let epilog =
-        unlabelled_instrs [
-          T.Comment "Return of the function";
-          T.Swap;
-          T.Goto Dispatcher.label
-        ]
-      in
-      let instrs =
-        prolog @
-        unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
-        translate_expression body env' @
-        epilog
-      in
-      (instrs, env)
+      let prolog, env' = fun_prolog fun_id formals env in
+      (prolog @ fun_body fun_id body env' @ fun_epilog, env)
 
 let split_defs p =
   List.fold_right (fun def (vals, defs) ->
@@ -377,9 +371,13 @@ let translate_definitions defs env =
     using [env] to retrieve contextual information. *)
 let translate (p : S.t) (env : environment) : T.t * environment =
   let vals, defs = split_defs p in
+
+  (* Idir: We need to collect all the function labels in a first pass
+     because all the functions are mutually recursive in Fopix.  *)
   let fun_codes, env =
-    translate_definitions defs (collect_function_labels p env)
+    translate_definitions defs (collect_function_info p env)
   in
+
   let main_code =
     let main_instrs, env = translate_definitions vals env in
     main_instrs @ unlabelled_instrs (
