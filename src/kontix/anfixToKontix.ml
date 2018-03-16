@@ -168,10 +168,6 @@ let split_program (prog : S.t) : fun_def list * val_def list =
 
 let translate (p : S.t) env =
   let fdefs, vdefs = split_program p in
-  let fdefs =
-    fdefs
-    |> List.map translate_fun_def
-    |> List.flatten
-  in
+  let fdefs = ExtStd.List.flat_map translate_fun_def fdefs in
   let main, fdefs' = build_main vdefs in
   ((fdefs @ fdefs', main), env)

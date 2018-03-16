@@ -267,7 +267,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.FunCall (fun_expr, args) ->
       let pass_fun_args args env =
         unlabelled_instr (T.Comment "Pass function arguments") ::
-        List.flatten (List.map (fun arg -> translate_expression arg env) args)
+        ExtStd.List.flat_map (fun arg -> translate_expression arg env) args
       in
       let save_vars env =
         List.map (fun (_, var) -> T.Aload var) env.variables
@@ -281,10 +281,8 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         )
       in
       let restore_vars env =
-        List.flatten (
-          List.map (fun (_, var) -> [T.Swap; T.Astore var])
-            (List.rev env.variables)
-        )
+        ExtStd.List.flat_map (fun (_, var) -> [T.Swap; T.Astore var])
+          (List.rev env.variables)
       in
       let return_label = new_label "return" in
       prepare_fun_call return_label env @

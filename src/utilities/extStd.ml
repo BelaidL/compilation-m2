@@ -24,4 +24,6 @@ module List = struct
     in
     aux ls
 
+  (** [flat_map f l] is equivalent to [flatten (map f l)].  *)
+  let flat_map f l = flatten (map f l)
 end
