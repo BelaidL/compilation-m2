@@ -52,10 +52,8 @@ let lookup_function_formals f env =
 (** [fresh_function_label f] returns a fresh label starting with [f]
     that will be used for the function body instructions. *)
 let fresh_function_label =
-  let r = ref 0 in
-  fun f ->
-    incr r;
-    T.Label (f ^ "_body_" ^ string_of_int !r)
+  let fresh_suffix = Gensym.make "_body_" in
+  fun f -> T.Label (f ^ fresh_suffix ())
 
 let bind_function_label fun_id env = {
   env with
@@ -145,9 +143,8 @@ end = struct
 end
 
 let new_label =
-  let ref_count = ref 0 in
-  fun name ->
-    incr ref_count; T.Label (name ^"_"^ string_of_int !ref_count)
+  let fresh_suffix = Gensym.make "_" in
+  fun name -> T.Label (name ^ fresh_suffix ())
 
 let basic_program code =
   { T.classname = "Fopix";

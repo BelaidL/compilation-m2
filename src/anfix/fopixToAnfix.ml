@@ -15,13 +15,7 @@ let initial_environment () = ()
 
 type defs = (T.identifier * T.expression) list
 
-let fresh_name_generator prefix =
-  let r = ref 0 in
-  fun () ->
-    incr r;
-    prefix ^ string_of_int !r
-
-let fresh_identifier = fresh_name_generator "_x"
+let fresh_identifier = Gensym.make "_x"
 
 (* Return true iff the given Fopix expression is already simple.  *)
 let is_simple = function

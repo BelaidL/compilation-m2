@@ -11,14 +11,8 @@ type environment = unit (* TODO *)
 
 let initial_environment () = () (* TODO *)
 
-let fresh_id_generator prefix = 
-  let i = ref (-1) in
-  fun () -> 
-    incr i;
-    prefix^string_of_int !i
-
 (* Generate a fresh continuation function identifier.  *)
-let fresh_cont_id : unit -> T.function_identifier = fresh_id_generator "_K" 
+let fresh_cont_id : unit -> T.function_identifier = Gensym.make "_K"
 
 type val_def = S.identifier * S.expression
 
