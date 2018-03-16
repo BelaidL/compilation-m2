@@ -29,16 +29,44 @@ module VarSet = Set.Make (struct
     let compare = compare
   end)
 
-let free_variables : S.expression -> VarSet.t = function
-  | S.Simple _ -> failwith "TODO"
-  | S.Let _ -> failwith "TODO"
-  | S.IfThenElse _ -> failwith "TODO"
-  | S.BinOp _ -> failwith "TODO"
-  | S.BlockNew _ -> failwith "TODO"
-  | S.BlockGet _ -> failwith "TODO"
-  | S.BlockSet _ -> failwith "TODO"
-  | S.FunCall _ -> failwith "TODO"
-  | S.Print _ -> failwith "TODO"
+let free_simple_variables : S.simplexpr -> VarSet.t = function
+  | S.Var v -> VarSet.singleton v
+  | _ -> VarSet.empty
+
+let rec free_variables : S.expression -> VarSet.t = function
+  | S.Simple e -> free_simple_variables e
+  | S.Let (id,e1,e2) ->
+     let freeV_e1, freeV_e2  = free_variables e1, free_variables e2 in
+     VarSet.union freeV_e1 (VarSet.remove id freeV_e2)
+
+  | S.IfThenElse (c,e1,e2) -> 
+     let freeV_c, freeV_e1, freeV_e2 = 
+       free_simple_variables c, free_variables e1, free_variables e2 in
+     VarSet.union freeV_c (VarSet.union freeV_e1 freeV_e2)
+
+  | S.BinOp (binop,e1,e2) -> 
+     let freeVar_e1, freeVar_e2  = 
+       free_simple_variables e1, free_simple_variables e2 in
+     VarSet.union freeVar_e1 freeVar_e2
+       
+  | S.BlockNew n -> free_simple_variables n 
+  | S.BlockGet (t,i) -> 
+     let freeVar_t, freeVar_i = 
+       free_simple_variables t, free_simple_variables i in
+     VarSet.union freeVar_t freeVar_i
+
+  | S.BlockSet (t,i,e) -> 
+     let freeV_t, freeV_i, freeV_e = 
+       free_simple_variables t,free_simple_variables i, free_simple_variables e
+     in
+     VarSet.union freeV_t (VarSet.union freeV_i freeV_e)
+
+  | S.FunCall (f,args) ->
+     let freeV_f, freeV_args = 
+       free_simple_variables f, List.map free_simple_variables args in
+     VarSet.union freeV_f (List.fold_left VarSet.union VarSet.empty freeV_args)
+
+  | S.Print s -> VarSet.empty
 
 let translate_simplexpr : S.simplexpr -> T.basicexpr = function
   | S.Num i -> T.Num i
