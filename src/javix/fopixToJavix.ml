@@ -137,9 +137,10 @@ end = struct
     ]
 end
 
-let ref_count = ref 0
-let new_label name =
-  incr ref_count; T.Label (name ^"_"^ string_of_int !ref_count)
+let new_label =
+  let ref_count = ref 0 in
+  fun name ->
+    incr ref_count; T.Label (name ^"_"^ string_of_int !ref_count)
 
 let basic_program code =
   { T.classname = "Fopix";
