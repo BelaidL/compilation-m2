@@ -45,9 +45,9 @@ let translate_simplexpr : S.simplexpr -> T.basicexpr = function
   | S.FunName f -> T.FunName f
   | S.Var v -> T.Var v
 
-let as_basicexpr : S.expression -> T.basicexpr option = function
+let rec as_basicexpr : S.expression -> T.basicexpr option = function
   | S.Simple e -> Some(translate_simplexpr e)
-  | S.Let _ -> None
+  | S.Let (id,e1,e2) -> None
   | S.IfThenElse _ -> None
   | S.BinOp (binop,e1,e2) -> 
      let e1' = translate_simplexpr e1 in
@@ -72,7 +72,7 @@ let as_basicexpr : S.expression -> T.basicexpr option = function
 let rec translate_expression :
   S.expression -> T.tailexpr * T.definition list = fun e ->
   match as_basicexpr e with
-  | Some _ -> failwith "TODO"
+  | Some e -> (T.TContCall e, [])
   | None -> (
       match e with
       | S.Let (x, e, e') ->
