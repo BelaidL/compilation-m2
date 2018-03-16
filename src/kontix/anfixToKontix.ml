@@ -91,7 +91,10 @@ let rec translate_expression :
                 (T.TPushCont (kid, fvs, ce), kdef :: kdefs @ kdefs')
           )
       | S.IfThenElse _ -> failwith "TODO"
-      | S.FunCall _ -> failwith "TODO"
+      | S.FunCall (e,args) -> (
+        T.TFunCall (translate_simplexpr e,List.map translate_simplexpr args),[]
+         )
+
       | S.Simple _ | S.BinOp _ | S.BlockNew _ | S.BlockGet _ | S.BlockSet _ |
         S.Print _ ->
           assert false
