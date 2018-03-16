@@ -1,7 +1,6 @@
 (** This module implements a compiler from Fopix to Javix. *)
 
-let error pos msg =
-  Error.error "compilation" pos msg
+let error msg = Error.error "compilation" Position.dummy msg
 
 (** As in any module that implements {!Compilers.Compiler}, the source
     language and the target language must be specified. *)
@@ -33,7 +32,7 @@ let initial_environment () = {
 let lookup_variable id env =
   try
     List.assoc id env.variables
-  with Not_found -> failwith ("Error: Variable "^id^" note found")
+  with Not_found -> error ("Variable " ^ id ^ " not found")
 
 let lookup_last_var env = T.Var (pred env.nextvar)
 
@@ -163,7 +162,7 @@ let translate_binop op =
       | S.Mul -> T.Mul
       | S.Div -> T.Div
       | S.Mod -> T.Rem
-      | _ -> failwith "Incorrect call. Binop is not an arithmetic operator") in
+      | _ -> error "Incorrect call: Binop is not an arithmetic operator") in
   T.Binop(op')
 
 let translate_cmpop op = match op with
@@ -172,7 +171,7 @@ let translate_cmpop op = match op with
   | S.Lt -> T.Lt
   | S.Ge -> T.Ge
   | S.Gt -> T.Gt
-  | _ -> failwith "Incorrect call. Binop is not a comparision operator"
+  | _ -> error "Incorrect call: Binop is not a comparision operator"
 
 let translate_binop_comp_with_new_label binop =
   let to_label = new_label "cmpop" in
@@ -184,7 +183,7 @@ let get_if_true_label_from_cond_codes cbs =
   | _, inst -> (
       match inst with
       | T.If_icmp (_, label) -> label
-      |_ -> failwith "Last instruction is not If_icmp"
+      |_ -> error "Last instruction is not If_icmp"
     )
 
 (* Idir: We translate a Fopix expression into a list of labelled Javix
