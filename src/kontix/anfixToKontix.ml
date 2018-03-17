@@ -152,8 +152,9 @@ let build_main (vdefs : val_def list) : (T.tailexpr * T.definition list) =
   in
   translate_expression main_expr
 
-let translate_fun_def (fdef : fun_def) : T.definition list =
-  failwith "TODO"
+let translate_fun_def ((f,formals,body) : fun_def) : T.definition list =
+  let tailexpr, defs = translate_expression body in
+  T.DefFun (f,formals,tailexpr) :: defs
 
 (* Remark: With the current implementation of [build_main], the order of
    value definitions must be preserved by this function.  *)
