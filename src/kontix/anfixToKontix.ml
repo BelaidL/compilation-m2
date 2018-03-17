@@ -116,6 +116,7 @@ let rec translate_expression :
               (T.TPushCont (kid, fvs, ce), kdef :: kdefs @ kdefs')
         )
       | S.IfThenElse _ -> failwith "TODO"
+
       | S.FunCall (e,args) -> (
         T.TFunCall (translate_simplexpr e,List.map translate_simplexpr args),[]
          )
@@ -159,7 +160,14 @@ let translate_fun_def ((f,formals,body) : fun_def) : T.definition list =
 (* Remark: With the current implementation of [build_main], the order of
    value definitions must be preserved by this function.  *)
 let split_program (prog : S.t) : fun_def list * val_def list =
-  failwith "TODO"
+    let fun_list = [] in 
+    let val_list = [] in
+    let split_into (flist, vlist) p = (
+      match p with
+      | S.DefVal (id, e) -> (flist, (id, e)::vlist)
+      | S.DefFun (fid, fmls, e) -> ((fid, fmls, e)::flist, vlist)
+    ) in List.fold_left split_into (fun_list, val_list) (List.rev prog)
+
 
 let translate (p : S.t) env =
   let fdefs, vdefs = split_program p in
