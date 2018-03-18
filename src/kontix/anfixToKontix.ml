@@ -7,9 +7,9 @@ module S = Source.AST
 module Target = Kontix
 module T = Target.AST
 
-type environment = unit (* TODO *)
+type environment = unit
 
-let initial_environment () = () (* TODO *)
+let initial_environment () = ()
 
 (* Generate a fresh continuation function identifier.  *)
 let fresh_cont_id : unit -> T.function_identifier = Gensym.make "_K"

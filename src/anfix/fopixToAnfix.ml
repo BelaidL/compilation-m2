@@ -5,8 +5,6 @@
     are simple). This is used for parsing Anfix without defining
     a full parser (but reusing Fopix parser instead) *)
 
-(** TODO: extend this code into a full Fopix to Anfix converter *)
-
 module S=FopixAST
 module T=AnfixAST
 
