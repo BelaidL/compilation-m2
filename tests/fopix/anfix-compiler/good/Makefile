@@ -6,7 +6,7 @@ FLAP_PATH = ../../../../
 
 PROGRAM = $(FLAP_PATH)/flap $(OPTIONS)
 
-TIMEOUT = 5
+TIMEOUT = 30
 
 -include ../../extension
 
