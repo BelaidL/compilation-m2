@@ -296,9 +296,12 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.Print s -> unlabelled_instrs (box_after [T.Print s])
 
 and call_fun fun_expr env =
-  unlabelled_instr (T.Comment "Compute the function to call") ::
-  translate_expression fun_expr env @
-  unlabelled_instrs [T.Goto Dispatcher.label]
+  match fun_expr with
+  | S.FunName f -> unlabelled_instrs [T.Goto (lookup_function_label f env)]
+  | _ ->
+      unlabelled_instr (T.Comment "Compute the function to call") ::
+      translate_expression fun_expr env @
+      unlabelled_instrs [T.Goto Dispatcher.label]
 
 and pass_fun_args args env =
   unlabelled_instr (T.Comment "Pass function arguments") ::
