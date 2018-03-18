@@ -29,36 +29,71 @@ let initial_environment () = {
   function_formals = [];
 }
 
-let lookup_variable id env =
-  try
-    List.assoc id env.variables
-  with Not_found -> error ("Variable " ^ id ^ " not found")
+module Env : sig
+  val lookup_variable : S.identifier -> environment -> T.var
 
-let lookup_last_var env = T.Var (pred env.nextvar)
+  val lookup_last_var : environment -> T.var
 
-let bind_function_formals fun_id formals env = {
-  env with function_formals = (fun_id, formals) :: env.function_formals
-}
+  val bind_function_formals :
+    S.function_identifier -> S.formals -> environment -> environment
 
-(** [lookup_function_label f env] returns the label of [f] in [env]. *)
-let lookup_function_label f env =
-  List.assoc f env.function_labels
+  (** [lookup_function_label f env] returns the label of [f] in [env]. *)
+  val lookup_function_label : S.identifier -> environment -> T.label
 
-(** [lookup_function_formals f env] returns the formal arguments of
-    [f] in [env]. *)
-let lookup_function_formals f env =
-  List.assoc f env.function_formals
+  (** [lookup_function_formals f env] returns the formal arguments of
+      [f] in [env]. *)
+  val lookup_function_formals :
+    S.function_identifier -> environment -> S.formals
 
-(** [fresh_function_label f] returns a fresh label starting with [f]
-    that will be used for the function body instructions. *)
-let fresh_function_label =
-  let fresh_suffix = Gensym.make "_body_" in
-  fun f -> T.Label (f ^ fresh_suffix ())
+  val bind_function_label : S.function_identifier -> environment -> environment
 
-let bind_function_label fun_id env = {
-  env with
-  function_labels = (fun_id, fresh_function_label fun_id) :: env.function_labels
-}
+  (** Variables *)
+
+  (** [bind_variable env x] associates Fopix variable x to the next
+      available Javix variable, and return this variable and the updated
+      environment *)
+  val bind_variable : environment -> S.identifier -> T.var * environment
+
+  val clear_all_variables : environment -> environment
+end = struct
+  let lookup_variable id env =
+    try
+      List.assoc id env.variables
+    with Not_found -> error ("Variable " ^ id ^ " not found")
+
+  let lookup_last_var env = T.Var (pred env.nextvar)
+
+  let bind_function_formals fun_id formals env = {
+    env with function_formals = (fun_id, formals) :: env.function_formals
+  }
+
+  let lookup_function_label f env =
+    List.assoc f env.function_labels
+
+  let lookup_function_formals f env =
+    List.assoc f env.function_formals
+
+  (** [fresh_function_label f] returns a fresh label starting with [f]
+      that will be used for the function body instructions. *)
+  let fresh_function_label =
+    let fresh_suffix = Gensym.make "_body_" in
+    fun f -> T.Label (f ^ fresh_suffix ())
+
+  let bind_function_label fun_id env = {
+    env with
+    function_labels =
+      (fun_id, fresh_function_label fun_id) :: env.function_labels
+  }
+
+  let bind_variable env x =
+    let v = T.Var env.nextvar in
+    v,
+    { env with
+      nextvar = env.nextvar + 1;
+      variables = (x,v) :: env.variables }
+
+  let clear_all_variables env = {env with variables = []; nextvar = 0}
+end
 
 let unlabelled_instr (instr : T.instruction) : T.labelled_instruction =
   (None, instr)
@@ -73,19 +108,17 @@ let labelled_instrs label = function
   | [] -> []
   | instr :: instrs -> labelled_instr label instr :: unlabelled_instrs instrs
 
-(** Variables *)
+let box_after instrs = instrs @ [T.Box]
 
-(** [bind_variable env x] associates Fopix variable x to the next
-    available Javix variable, and return this variable and the updated
-    environment *)
-let bind_variable env x =
-  let v = T.Var env.nextvar in
-  v,
-  { env with
-    nextvar = env.nextvar + 1;
-    variables = (x,v) :: env.variables }
+let bipush_box i = box_after [T.Bipush i]
 
-let clear_all_variables env = {env with variables = []; nextvar = 0}
+let unbox_before instrs = T.Unbox :: instrs
+
+let unbox_after instrs = instrs @ [unlabelled_instr T.Unbox]
+
+let new_label =
+  let fresh_suffix = Gensym.make "_" in
+  fun name -> T.Label (name ^ fresh_suffix ())
 
 (** For return addresses (or later higher-order functions),
     we encode some labels as numbers. These numbers could then
@@ -108,14 +141,6 @@ module Labels :
      n
    let all_encodings () = !allcodes
  end
-
-let box_after instrs = instrs @ [T.Box]
-
-let bipush_box i = box_after [T.Bipush i]
-
-let unbox_before instrs = T.Unbox :: instrs
-
-let unbox_after instrs = instrs @ [unlabelled_instr T.Unbox]
 
 module Dispatcher : sig
   val label : T.label
@@ -141,10 +166,6 @@ end = struct
       unbox_before [T.Tableswitch (base_value, labels, default_label)]
     )
 end
-
-let new_label =
-  let fresh_suffix = Gensym.make "_" in
-  fun name -> T.Label (name ^ fresh_suffix ())
 
 let basic_program code =
   { T.classname = "Fopix";
@@ -207,18 +228,18 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.Num i -> unlabelled_instrs (bipush_box i)
 
   | S.Var id ->
-      let v  = lookup_variable id env in
+      let v  = Env.lookup_variable id env in
       unlabelled_instrs [T.Aload v]
 
   | S.FunName fun_id ->
-      let fun_label = lookup_function_label fun_id env in
+      let fun_label = Env.lookup_function_label fun_id env in
       unlabelled_instrs (
         T.Comment ("Push the encoded label of the function " ^ fun_id) ::
         bipush_box (Labels.encode fun_label)
       )
 
   | S.Let (id, expr, expr') ->
-      let (var, env') = bind_variable env id in
+      let (var, env') = Env.bind_variable env id in
       let instrs =
         translate_expression expr env @ unlabelled_instrs [T.Astore var] in
       let instrs' = translate_expression expr' env' in
@@ -297,7 +318,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
 and call_fun fun_expr env =
   match fun_expr with
-  | S.FunName f -> unlabelled_instrs [T.Goto (lookup_function_label f env)]
+  | S.FunName f -> unlabelled_instrs [T.Goto (Env.lookup_function_label f env)]
   | _ ->
       unlabelled_instr (T.Comment "Compute the function to call") ::
       translate_expression fun_expr env @
@@ -311,28 +332,28 @@ let collect_function_info prog env =
   let collect_function_info env = function
     | S.DefFun (fun_id, formals, _) ->
         env
-        |> bind_function_label fun_id
-        |> bind_function_formals fun_id formals
+        |> Env.bind_function_label fun_id
+        |> Env.bind_function_formals fun_id formals
     | S.DefVal _ -> env
   in
   List.fold_left collect_function_info env prog
 
 let store_fun_args formals env =
   List.fold_left (fun (instrs, env) formal ->
-      let var, env = bind_variable env formal in
+      let var, env = Env.bind_variable env formal in
       (T.Astore var :: instrs, env)
     ) ([], env) formals
 
 let define_value  id expr env =
-  let var, env' = bind_variable env id in
+  let var, env' = Env.bind_variable env id in
   let instrs =
     translate_expression expr env @ unlabelled_instrs [T.Astore var]
   in
   (instrs, env')
 
 let fun_prolog fun_id formals env =
-  let instrs, env = store_fun_args formals (clear_all_variables env) in
-  (labelled_instrs (lookup_function_label fun_id env) (
+  let instrs, env = store_fun_args formals (Env.clear_all_variables env) in
+  (labelled_instrs (Env.lookup_function_label fun_id env) (
       T.Comment "Store the arguments in variables" ::
       instrs
     ),
@@ -389,7 +410,7 @@ let translate (p : S.t) (env : environment) : T.t * environment =
     let main_instrs, env = translate_definitions vals env in
     main_instrs @ unlabelled_instrs (
       T.Comment "Return the value of the last variable" ::
-      T.Aload (lookup_last_var env) ::
+      T.Aload (Env.lookup_last_var env) ::
       unbox_before [T.Ireturn]
     )
   in
