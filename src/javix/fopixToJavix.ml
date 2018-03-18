@@ -278,7 +278,11 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       unbox_after i_instrs @ v_instrs @ unlabelled_instrs [T.AAstore]
 
   | S.FunCall (fun_expr, args) ->
-      (* TODO: Check if the number of arguments is OK.  *)
+      (* TODO: Check if the number of arguments is OK.  In fact, it
+         seems impossible to always check this at compile-time without
+         a typechecker.  Basically, the problem is that, for
+         higher-order function, the called function is determined only
+         at runtime.  *)
       let return_label = new_label "return" in
       save_vars env @
       save_return_address return_label @
