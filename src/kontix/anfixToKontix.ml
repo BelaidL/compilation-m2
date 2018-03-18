@@ -115,8 +115,18 @@ let rec translate_expression :
               let kdef = T.DefCont (kid, fvs, x, ce') in
               (T.TPushCont (kid, fvs, ce), kdef :: kdefs @ kdefs')
         )
-      | S.IfThenElse _ -> failwith "TODO"
-
+      | S.IfThenElse (s, e1, e2) -> ( 
+          let ss = translate_simplexpr s in
+          let e1' = as_basicexpr e1 in
+          let e2' = as_basicexpr e2 in
+          match e1', e2' with
+          | Some e1', Some e2' -> T.TContCall(T.IfThenElse(ss, e1', e2')), []
+          | None, None -> 
+            let ce1, kdefs1 = translate_expression e1 in
+            let ce2, kdefs2 = translate_expression e2 in
+             (T.TIfThenElse(ss, ce1, ce2), kdefs1@kdefs2 )
+          | _ -> assert false
+        )
       | S.FunCall (e,args) -> (
         T.TFunCall (translate_simplexpr e,List.map translate_simplexpr args),[]
          )
