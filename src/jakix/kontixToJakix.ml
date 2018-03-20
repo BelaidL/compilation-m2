@@ -88,7 +88,7 @@ let basic_code code varSize stackSize = {
 }
 
 let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
-(T.labelled_instruction list) * environment = 
+(T.labelled_instruction list) = 
   match expr with
   | S.Num _ -> failwith "TODO"
   | S.FunName _ -> failwith "TODO"
@@ -102,7 +102,7 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
   | S.Print _ -> failwith "TODO"
 
 let rec translate_tailexpr (expr: S.tailexpr) (env: environment) : 
-(T.labelled_instruction list) * environment = 
+(T.labelled_instruction list) = 
   match expr with
   | S.TLet _ -> failwith "TODO"
   | S.TIfThenElse _ -> failwith "TODO"
@@ -110,11 +110,9 @@ let rec translate_tailexpr (expr: S.tailexpr) (env: environment) :
   | S.TFunCall _ -> failwith "TODO"
   | S.TContCall _ -> failwith "TODO"
 
-let translate_def_fun : S.function_identifier -> S.formals -> S.tailexpr -> 
-(T.labelled_instruction list) = failwith "TODO"
-
-let translate_def_cont : S.function_identifier -> S.formal_env -> 
-S.identifier -> S.tailexpr -> (T.labelled_instruction list) = failwith "TODO" 
+let translate_fun_body fun_id body env : (T.labelled_instruction list) = 
+  Utils.unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
+  (translate_tailexpr body env)
 
 let tarnslate_definition (def:S.definition) (env: environment) : 
 (T.labelled_instruction list) * environment =
@@ -126,7 +124,7 @@ let varAndStack_size (p: S.t) (env: environment) : int * int = failwith "TODO"
 
 let rec translate (p : S.t) env : T.t * environment = 
   let defs,main = p in
-  let main_code, env' = translate_tailexpr main env in
+  let main_code = translate_tailexpr main env in
   let env',defs_instrs = (
     List.fold_left (fun (env,instrs) def -> 
       let instr_list,env = tarnslate_definition def env in
