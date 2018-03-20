@@ -1,0 +1,1 @@
+../../interpreter/good/fact.fx
