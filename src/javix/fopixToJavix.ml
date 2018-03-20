@@ -207,7 +207,9 @@ let get_if_true_label_from_cond_codes cbs =
 let append_if_icmp cbs =
   match (List.nth cbs ((List.length cbs)-1)) with
   | _, T.If_icmp (_, _) -> cbs
-  | _, _ -> let code_comp = T.If_icmp (T.Eq, (new_label "cmpop")) in cbs @ (unlabelled_instrs [T.Bipush 1;code_comp])
+  | _, _ ->
+      let code_comp = T.If_icmp (T.Eq, (new_label "cmpop")) in
+      unbox_after cbs @ (unlabelled_instrs [T.Bipush 1;code_comp])
 
 let save_vars env =
   unlabelled_instrs (
@@ -275,8 +277,13 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
       | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
           let op, to_label = translate_binop_comp_with_new_label binop in
-          unbox_after insts_left @ unbox_after insts_right @
-          unlabelled_instrs [op]
+          let close_label = new_label "close" in
+          unbox_after insts_left @
+          unbox_after insts_right @
+          unlabelled_instrs [op; T.Bipush 0] @
+          unlabelled_instr (T.Goto close_label) ::
+          labelled_instr to_label (T.Bipush 1) ::
+          labelled_instrs close_label [T.Box]
       end
 
   | S.BlockNew size_expr ->
