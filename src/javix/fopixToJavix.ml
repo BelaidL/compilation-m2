@@ -56,7 +56,7 @@ module Env : sig
 
   val clear_all_variables : environment -> environment
 
-	val fresh_function_label : S.identifier -> T.label
+  val fresh_function_label : S.identifier -> T.label
 
 end = struct
   let lookup_variable id env =
