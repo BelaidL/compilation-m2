@@ -25,35 +25,21 @@ type environment = {
 
 module Env : sig
   val lookup_variable : S.identifier -> environment -> T.var
-
   val lookup_last_var : environment -> T.var
-
   (** [lookup_function_label f env] returns the label of [f] in [env]. *)
   val lookup_function_label : S.identifier -> environment -> T.label
-
-  (** [lookup_function_formals f env] returns the formal arguments of
-      [f] in [env]. *)
+  (** [lookup_function_formals f env] returns the formal arguments of [f] in [env]. *)
   val lookup_function_formals :
     S.function_identifier -> environment -> S.formals
-
-  val lookup_cont_args : S.function_identifier -> environment -> 
-(S.formal_env * S.identifier)
-
+  val lookup_cont_args : S.function_identifier -> environment -> (S.formal_env * S.identifier)
   val bind_function_label : S.function_identifier -> environment -> environment
-
   val bind_function_formals :
     S.function_identifier -> S.formals -> environment -> environment
 
   val bind_variable : environment -> S.identifier -> T.var * environment
-
-  val bind_cont_args : S.function_identifier -> S.formal_env -> 
-S.identifier -> environment -> environment
-
-  val bind_cont_stack_label : S.function_identifier -> environment -> 
-environment
-
+  val bind_cont_args : S.function_identifier -> S.formal_env -> S.identifier -> environment -> environment
+  val bind_cont_stack_label : S.function_identifier -> environment -> environment
   val current_cont : environment -> (S.function_identifier * T.label) option
-
   val clear_all_variables : environment -> environment
  
 end = struct
@@ -117,14 +103,17 @@ module Utils : sig
   val unlabelled_instr     : T.instruction -> T.labelled_instruction
   val unlabelled_instrs    : (T.instruction list) -> (T.labelled_instruction list)
   val labelled_instr       : T.label -> T.instruction -> T.labelled_instruction
-  val labelled_instrs      : T.label -> (T.instruction list) -> 
-(T.labelled_instruction list)
-
+  val labelled_instrs      : T.label -> (T.instruction list) -> (T.labelled_instruction list)
   val new_label            : string -> T.label
   val fun_epilog           : (T.labelled_instruction list)
+  val translate_binop_comp_with_new_label : (S.binop -> T.instruction * T.label)
+  val translate_binop      : (S.binop -> T.instruction)
+  val box_after            : T.instruction list -> T.instruction list
+  val bipush_box           : (int -> T.instruction list)
+  val unbox_after          : T.labelled_instruction list -> T.labelled_instruction list
+  val unbox_before         : T.instruction list -> T.instruction list
 
 end = struct
-
   let translate_binop   = FopixToJavix.translate_binop
   let translate_cmpop   = FopixToJavix.translate_cmpop
   let unlabelled_instr  = FopixToJavix.unlabelled_instr
@@ -133,7 +122,12 @@ end = struct
   let labelled_instrs   = FopixToJavix.labelled_instrs
   let new_label         = FopixToJavix.new_label
   let fun_epilog        = FopixToJavix.fun_epilog
-
+  let translate_binop_comp_with_new_label = FopixToJavix.translate_binop_comp_with_new_label
+  let translate_binop   = FopixToJavix.translate_binop
+  let box_after         = FopixToJavix.box_after
+  let bipush_box        = FopixToJavix.bipush_box
+  let unbox_after       = FopixToJavix.unbox_after
+  let unbox_before      = FopixToJavix.unbox_before
 end
 
 (** Initially, the environment is empty. *)
@@ -161,7 +155,25 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
   | S.Var _ -> failwith "TODO"
   | S.Let _ -> failwith "TODO"
   | S.IfThenElse _ -> failwith "TODO"
-  | S.BinOp _ -> failwith "TODO"
+  | S.BinOp (binop, left_expr, right_expr) -> 
+      let insts_left = translate_basicexpr left_expr env in
+      let insts_right = translate_basicexpr right_expr env in
+      begin match binop with
+      | S.Add | S.Sub | S.Mul | S.Div | S.Mod ->
+          let op = Utils.translate_binop binop in
+          Utils.unbox_after insts_left @ Utils.unbox_after insts_right @
+          Utils.unlabelled_instrs (Utils.box_after [op])
+
+      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
+          let op, to_label = Utils.translate_binop_comp_with_new_label binop in
+          let close_label = Utils.new_label "close" in
+          Utils.unbox_after insts_left @
+          Utils.unbox_after insts_right @
+          Utils.unlabelled_instrs [op; T.Bipush 0] @
+          Utils.unlabelled_instr (T.Goto close_label) ::
+          Utils.labelled_instr to_label (T.Bipush 1) ::
+          Utils.labelled_instrs close_label [T.Box]
+      end
   | S.BlockNew _ -> failwith "TODO"
   | S.BlockGet _ -> failwith "TODO"
   | S.BlockSet _ -> failwith "TODO"
