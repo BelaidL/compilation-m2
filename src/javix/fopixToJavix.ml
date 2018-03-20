@@ -227,23 +227,70 @@ let restore_vars env =
   ExtStd.List.flat_map (fun (_, var) -> [T.Swap; T.Astore var])
     (List.rev env.variables)
 
+let translate_Num i = unlabelled_instrs (bipush_box i)
+
+let translate_Var v = unlabelled_instrs [T.Aload v]
+
+let translate_FunName fun_id fun_label = 
+   unlabelled_instrs (
+        T.Comment ("Push the encoded label of the function " ^ fun_id) ::
+        bipush_box (Labels.encode fun_label)
+      )
+
+let translate_Binop insts_left insts_right binop =
+   begin match binop with
+      | S.Add | S.Sub | S.Mul | S.Div | S.Mod ->
+          let op = translate_binop binop in
+          unbox_after insts_left @ unbox_after insts_right @
+          unlabelled_instrs (box_after [op])
+
+            
+      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
+          let op, to_label = translate_binop_comp_with_new_label binop in
+          let close_label = new_label "close" in
+          unbox_after insts_left @
+          unbox_after insts_right @
+          unlabelled_instrs [op; T.Bipush 0] @
+          unlabelled_instr (T.Goto close_label) ::
+          labelled_instr to_label (T.Bipush 1) ::
+          labelled_instrs close_label [T.Box]
+      end
+
+let translate_BlockNew size = 
+  unlabelled_instr (T.Comment "builds an array of java Objects") ::
+      size @
+      unlabelled_instrs (unbox_before [T.Anewarray])
+
+let translate_BlockGet a_instrs i_instrs =
+  unlabelled_instr (T.Comment "array access: array[index]") ::
+      a_instrs @ unlabelled_instr T.Checkarray :: i_instrs @
+      unlabelled_instrs (unbox_before [T.AAload])
+
+let translate_BlockSet a_instrs i_instrs v_instrs  =
+  unlabelled_instrs (
+        T.Comment "array modification: array[index] = value" ::
+        bipush_box 0
+      ) @
+      a_instrs @
+      unlabelled_instr T.Checkarray ::
+      unbox_after i_instrs @ v_instrs @ unlabelled_instrs [T.AAstore]
+
+let translate_Print s = unlabelled_instrs (box_after [T.Print s])
+
 (* We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
   T.labelled_instruction list =
   match expr with
-  | S.Num i -> unlabelled_instrs (bipush_box i)
+  | S.Num i -> translate_Num i
 
   | S.Var id ->
       let v  = Env.lookup_variable id env in
-      unlabelled_instrs [T.Aload v]
+      translate_Var v
 
   | S.FunName fun_id ->
       let fun_label = Env.lookup_function_label fun_id env in
-      unlabelled_instrs (
-        T.Comment ("Push the encoded label of the function " ^ fun_id) ::
-        bipush_box (Labels.encode fun_label)
-      )
+      translate_FunName fun_id fun_label
 
   | S.Let (id, expr, expr') ->
       let (var, env') = Env.bind_variable env id in
@@ -269,47 +316,22 @@ let rec translate_expression (expr : S.expression) (env : environment) :
   | S.BinOp (binop, left_expr, right_expr) ->
       let insts_left = translate_expression left_expr env in
       let insts_right = translate_expression right_expr env in
-      begin match binop with
-      | S.Add | S.Sub | S.Mul | S.Div | S.Mod ->
-          let op = translate_binop binop in
-          unbox_after insts_left @ unbox_after insts_right @
-          unlabelled_instrs (box_after [op])
-
-      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
-          let op, to_label = translate_binop_comp_with_new_label binop in
-          let close_label = new_label "close" in
-          unbox_after insts_left @
-          unbox_after insts_right @
-          unlabelled_instrs [op; T.Bipush 0] @
-          unlabelled_instr (T.Goto close_label) ::
-          labelled_instr to_label (T.Bipush 1) ::
-          labelled_instrs close_label [T.Box]
-      end
+      translate_Binop insts_left insts_right binop
 
   | S.BlockNew size_expr ->
       let size = translate_expression size_expr env in
-      unlabelled_instr (T.Comment "builds an array of java Objects") ::
-      size @
-      unlabelled_instrs (unbox_before [T.Anewarray])
+      translate_BlockNew size
 
   | S.BlockGet (array_expr, index_expr) ->
       let a_instrs = translate_expression array_expr env in
       let i_instrs = translate_expression index_expr env in
-      unlabelled_instr (T.Comment "array access: array[index]") ::
-      a_instrs @ unlabelled_instr T.Checkarray :: i_instrs @
-      unlabelled_instrs (unbox_before [T.AAload])
+      translate_BlockGet a_instrs i_instrs
 
   | S.BlockSet (array_expr, index_expr, value_expr) ->
       let a_instrs = translate_expression array_expr env in
       let i_instrs = translate_expression index_expr env in
       let v_instrs = translate_expression value_expr env in
-      unlabelled_instrs (
-        T.Comment "array modification: array[index] = value" ::
-        bipush_box 0
-      ) @
-      a_instrs @
-      unlabelled_instr T.Checkarray ::
-      unbox_after i_instrs @ v_instrs @ unlabelled_instrs [T.AAstore]
+      translate_BlockSet a_instrs i_instrs v_instrs
 
   | S.FunCall (fun_expr, args) ->
       (* TODO: Check if the number of arguments is OK.  In fact, it
@@ -327,7 +349,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
         restore_vars env
       )
 
-  | S.Print s -> unlabelled_instrs (box_after [T.Print s])
+  | S.Print s -> translate_Print s
 
 and call_fun fun_expr env =
   match fun_expr with
