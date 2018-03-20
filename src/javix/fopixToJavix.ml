@@ -196,13 +196,15 @@ let translate_binop_comp_with_new_label binop =
   T.If_icmp (translate_cmpop binop, to_label)
 
 let get_if_true_label_from_cond_codes cbs =
-  let last = List.nth cbs ((List.length cbs)-1) in
+  let _, last = List.nth cbs ((List.length cbs)-1) in
   match last with
-  | _, inst -> (
-      match inst with
-      | T.If_icmp (_, label) -> label
-      |_ -> error "Last instruction is not If_icmp"
-    )
+  | T.If_icmp (_, label) -> label
+  | _ -> error "Last instruction must be If_icmp"
+
+let append_if_icmp cbs =
+  match (List.nth cbs ((List.length cbs)-1)) with
+  | _, T.If_icmp (_, _) -> cbs
+  | _, _ -> let code_comp = T.If_icmp (T.Eq, (new_label "cmpop")) in cbs @ (unlabelled_instrs [T.Bipush 1;code_comp])
 
 let save_vars env =
   unlabelled_instrs (
@@ -246,7 +248,8 @@ let rec translate_expression (expr : S.expression) (env : environment) :
       instrs @ instrs'
 
   | S.IfThenElse (cond_expr, then_expr, else_expr) ->
-      let cond_codes = translate_expression cond_expr env in
+      let cond_codes' = translate_expression cond_expr env in
+      let cond_codes = append_if_icmp cond_codes' in
       let then_codes = translate_expression then_expr env in
       let else_codes = translate_expression else_expr env in
       let if_true_label = get_if_true_label_from_cond_codes cond_codes in
