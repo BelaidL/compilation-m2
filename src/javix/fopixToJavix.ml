@@ -196,7 +196,7 @@ let translate_cmpop op = match op with
 
 let translate_binop_comp_with_new_label binop =
   let to_label = new_label "cmpop" in
-  T.If_icmp (translate_cmpop binop, to_label)
+  (T.If_icmp (translate_cmpop binop, to_label), to_label)
 
 let get_if_true_label_from_cond_codes cbs =
   let _, last = List.nth cbs ((List.length cbs)-1) in
@@ -274,7 +274,7 @@ let rec translate_expression (expr : S.expression) (env : environment) :
           unlabelled_instrs (box_after [op])
 
       | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
-          let op = translate_binop_comp_with_new_label binop in
+          let op, to_label = translate_binop_comp_with_new_label binop in
           unbox_after insts_left @ unbox_after insts_right @
           unlabelled_instrs [op]
       end
