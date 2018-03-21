@@ -347,7 +347,7 @@ let collect_function_info prog env =
 
 let rec translate (p : S.t) env : T.t * environment = 
   let defs, main = p in
-  let defs' = (S.DefCont (cont_init, [], id_init, main)) :: defs in
+  let defs' = (S.DefCont (cont_init, [], id_init, S.TContCall (S.Var id_init))) :: defs in
 
   let env = collect_function_info defs' env in
 
