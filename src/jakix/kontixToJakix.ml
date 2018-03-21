@@ -65,7 +65,8 @@ end = struct
   let lookup_last_var env = T.Var (pred env.nextvar)
 
   let lookup_function_label f env =
-    List.assoc f env.function_labels
+    try List.assoc f env.function_labels with
+    | Not_found -> error ("Function " ^ f ^ " not found")
 
   let lookup_function_formals f env =
     List.assoc f env.function_formals
@@ -184,7 +185,7 @@ end
 let initial_environment () = {
   nextvar          = 0;
   variables        = [];
-  function_labels  = [];
+  function_labels  = [(cont_init, T.Label cont_init)];
   function_formals = [];
   cont_stack       = [cont_init];
   cont_args        = [];
@@ -353,19 +354,23 @@ let collect_function_info prog env =
 
 let rec translate (p : S.t) env : T.t * environment = 
   let defs, main = p in
-  let defs' = (S.DefCont (cont_init, [], id_init, main)) :: defs in
 
-  let env = collect_function_info defs' env in
+  let env = collect_function_info defs env in
 
   let env', defs_instrs = (
     List.fold_left (fun (env,instrs) def -> 
       let instr_list,env = translate_definition def env in
-      (env, (instrs @ instr_list)) ) (env,[]) defs' ) in
+      (env, (instrs @ instr_list)) ) (env,[]) defs) in
   
   let main_code = translate_tailexpr main env in
   
   (* let varSize, stackSize = varAndStack_size p env' in  *)
-  let code = main_code @ defs_instrs @ Dispatcher.code () in
+  let code =
+    main_code @
+    Utils.labelled_instrs (T.Label cont_init) [T.Unbox; T.Ireturn] @
+    defs_instrs @
+    Dispatcher.code ()
+  in
   (* (basic_code code varSize stackSize), env' *)
   (basic_code code 100 1000  ), env'
   
