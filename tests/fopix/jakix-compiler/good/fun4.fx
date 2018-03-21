@@ -1,0 +1,1 @@
+../../interpreter/good/fun4.fx
