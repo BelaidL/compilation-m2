@@ -150,10 +150,26 @@ let basic_code code varSize stackSize = {
 let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
 (T.labelled_instruction list) = 
   match expr with
-  | S.Num _ -> failwith "TODO"
-  | S.FunName _ -> failwith "TODO"
-  | S.Var _ -> failwith "TODO"
-  | S.Let _ -> failwith "TODO"
+  | S.Num i -> Utils.unlabelled_instrs (Utils.bipush_box i)
+
+  | S.FunName fun_id ->
+      let fun_label = Env.lookup_function_label fun_id env in
+      Utils.unlabelled_instrs (
+        T.Comment ("Push the encoded label of the function " ^ fun_id) ::
+        Utils.bipush_box (Labels.encode fun_label)
+      )
+
+  | S.Var id ->
+      let v  = Env.lookup_variable id env in
+      Utils.unlabelled_instrs [T.Aload v]
+
+  | S.Let (id, expr, expr') ->
+      let (var, env') = Env.bind_variable env id in
+      let instrs =
+        translate_basicexpr expr env @ Utils.unlabelled_instrs [T.Astore var] in
+      let instrs' = translate_basicexpr expr' env' in
+      instrs @ instrs'
+
   | S.IfThenElse _ -> failwith "TODO"
   | S.BinOp (binop, left_expr, right_expr) -> 
       let insts_left = translate_basicexpr left_expr env in
@@ -174,10 +190,34 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
           Utils.labelled_instr to_label (T.Bipush 1) ::
           Utils.labelled_instrs close_label [T.Box]
       end
-  | S.BlockNew _ -> failwith "TODO"
-  | S.BlockGet _ -> failwith "TODO"
-  | S.BlockSet _ -> failwith "TODO"
-  | S.Print _ -> failwith "TODO"
+
+  | S.BlockNew size_expr ->
+      let size = translate_basicexpr size_expr env in
+      Utils.unlabelled_instr (T.Comment "builds an array of java Objects") ::
+      size @
+      Utils.unlabelled_instrs (Utils.unbox_before [T.Anewarray])
+
+  | S.BlockGet (array_expr, index_expr) ->
+      let a_instrs = translate_basicexpr array_expr env in
+      let i_instrs = translate_basicexpr index_expr env in
+      Utils.unlabelled_instr (T.Comment "array access: array[index]") ::
+      a_instrs @ Utils.unlabelled_instr T.Checkarray :: i_instrs @
+      Utils.unlabelled_instrs (Utils.unbox_before [T.AAload])
+
+  | S.BlockSet (array_expr, index_expr, value_expr) ->
+      let a_instrs = translate_basicexpr array_expr env in
+      let i_instrs = translate_basicexpr index_expr env in
+      let v_instrs = translate_basicexpr value_expr env in
+      Utils.unlabelled_instrs (
+        T.Comment "array modification: array[index] = value" ::
+        Utils.bipush_box 0
+      ) @
+      a_instrs @
+      Utils.unlabelled_instr T.Checkarray ::
+      Utils.unbox_after i_instrs @ v_instrs @ Utils.unlabelled_instrs [T.AAstore]
+
+  | S.Print s -> Utils.unlabelled_instrs (Utils.box_after [T.Print s])
+
 
 let rec translate_tailexpr (expr: S.tailexpr) (env: environment) : 
 (T.labelled_instruction list) = 
