@@ -52,7 +52,7 @@ environment -> environment
   val bind_cont_stack_label : 
 S.function_identifier -> environment -> environment
 
-  val current_cont : environment -> S.function_identifier option
+  val current_cont : environment -> S.function_identifier option * environment
   val clear_all_variables : environment -> environment
  
 end = struct
@@ -102,9 +102,13 @@ end = struct
   }
 
   let current_cont env =
-    match env.cont_stack with
-    | [] -> None
-    | cont :: conts -> Some cont
+     match env.cont_stack with
+    | [] -> None,env
+    | cont :: conts -> 
+       let env' = {
+         env with cont_stack = conts
+       } in
+       (Some cont), env'
 
   let clear_all_variables env = {env with variables = []; nextvar = 0}
 
@@ -270,15 +274,8 @@ let call_fun fun_expr env =
      Utils.unlabelled_instrs [T.Goto Dispatcher.label]
 
 let translate_FunCall fun_expr args env =
-  (* let return_label = Utils.new_label "return" in *)
-     (* save_vars env @ *)
-     (* Utils.save_return_address return_label @ *)
      pass_fun_args args env @
      call_fun fun_expr env 
-     (* Utils.labelled_instrs return_label ( *)
-     (*   T.Comment "Returned from the function call" :: *)
-     (*   restore_vars env *)
-     (* ) *)
 
 let rec translate_tailexpr (expr: S.tailexpr) (env: environment) : 
 (T.labelled_instruction list) = 
@@ -303,9 +300,9 @@ let rec translate_tailexpr (expr: S.tailexpr) (env: environment) :
 
   | S.TContCall b_expr -> (
       match Env.current_cont env with
-      | None -> failwith "No such continuation"
-      | Some fun_id ->
-          translate_tailexpr (S.TFunCall (S.FunName fun_id, [b_expr])) env
+      | None, _ -> failwith "No such continuation"
+      | Some fun_id, env' ->
+          translate_tailexpr (S.TFunCall (S.FunName fun_id, [b_expr])) env'
     )
 
 let translate_fun_body fun_id body env : (T.labelled_instruction list) = 
