@@ -1,6 +1,7 @@
 (** This module implements a compiler from Kontix to Fopix. *)
 
 let error msg = Error.error "compilation" Position.dummy msg
+let cont_init,id_init = "_K00", "identifier_init"
 
 (** As in any module that implements {!Compilers.Compiler}, the source
     language and the target language must be specified. *)
@@ -18,7 +19,7 @@ type environment = {
   (** [function_formals] maintains the relation between function identifiers
       and their formal arguments. *)
   function_formals : (S.function_identifier * S.formals) list;
-  cont_stack       : (S.function_identifier * T.label) list;
+  cont_stack       : S.function_identifier list;
 
   cont_args : (S.function_identifier * (S.formal_env * S.identifier)) list;
 }
@@ -51,7 +52,7 @@ environment -> environment
   val bind_cont_stack_label : 
 S.function_identifier -> environment -> environment
 
-  val current_cont : environment -> (S.function_identifier * T.label) option
+  val current_cont : environment -> S.function_identifier option
   val clear_all_variables : environment -> environment
  
 end = struct
@@ -96,8 +97,7 @@ end = struct
   }
 
   let bind_cont_stack_label cont_id env = {
-    env with cont_stack = let label = lookup_function_label cont_id env in
-                          (cont_id,label) :: env.cont_stack
+    env with cont_stack = (cont_id :: env.cont_stack)
   }
 
   let current_cont env =
@@ -186,7 +186,7 @@ let initial_environment () = {
   variables        = [];
   function_labels  = [];
   function_formals = [];
-  cont_stack       = [];
+  cont_stack       = [cont_init];
   cont_args        = [];
 }
 
@@ -346,10 +346,8 @@ let collect_function_info prog env =
   List.fold_left collect_function_info env prog
 
 let rec translate (p : S.t) env : T.t * environment = 
-  let cont_init,id_init = "_K00", "identifier_init" in
   let defs, main = p in
-  let defs', main' = 
-(S.DefCont (cont_init, [], id_init, main)) :: defs, (S.TPushCont (cont_init, [], main)) in
+  let defs' = (S.DefCont (cont_init, [], id_init, main)) :: defs in
 
   let env = collect_function_info defs' env in
 
@@ -358,7 +356,7 @@ let rec translate (p : S.t) env : T.t * environment =
       let instr_list,env = translate_definition def env in
       (env, (instrs @ instr_list)) ) (env,[]) defs' ) in
   
-  let main_code = translate_tailexpr main' env in
+  let main_code = translate_tailexpr main env in
   
   (* let varSize, stackSize = varAndStack_size p env' in  *)
   let code = main_code @ defs_instrs @ Dispatcher.code () in
