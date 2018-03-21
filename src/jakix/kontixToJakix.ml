@@ -112,6 +112,8 @@ module Utils : sig
   val bipush_box           : (int -> T.instruction list)
   val unbox_after          : T.labelled_instruction list -> T.labelled_instruction list
   val unbox_before         : T.instruction list -> T.instruction list
+  val append_if_icmp       : T.labelled_instruction list -> T.labelled_instruction list
+  val get_if_true_label_from_cond_codes : ('a * T.instruction) list -> T.label
 
 end = struct
   let translate_binop   = FopixToJavix.translate_binop
@@ -128,6 +130,8 @@ end = struct
   let bipush_box        = FopixToJavix.bipush_box
   let unbox_after       = FopixToJavix.unbox_after
   let unbox_before      = FopixToJavix.unbox_before
+  let append_if_icmp    = FopixToJavix.append_if_icmp
+  let get_if_true_label_from_cond_codes = FopixToJavix.get_if_true_label_from_cond_codes
 end
 
 (** Initially, the environment is empty. *)
@@ -170,7 +174,20 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
       let instrs' = translate_basicexpr expr' env' in
       instrs @ instrs'
 
-  | S.IfThenElse _ -> failwith "TODO"
+  | S.IfThenElse (cond_expr, then_expr, else_expr) ->
+      let cond_codes' = translate_basicexpr cond_expr env in
+      let cond_codes = Utils.append_if_icmp cond_codes' in
+      let then_codes = translate_basicexpr then_expr env in
+      let else_codes = translate_basicexpr else_expr env in
+      let if_true_label = Utils.get_if_true_label_from_cond_codes cond_codes in
+      let close_label = Utils.new_label "close" in
+      cond_codes @
+      else_codes @
+      Utils.unlabelled_instr (T.Goto close_label) ::
+      Utils.labelled_instr if_true_label (T.Comment "then_start") ::
+      then_codes @
+      Utils.labelled_instrs close_label [T.Comment "end_if"]
+
   | S.BinOp (binop, left_expr, right_expr) -> 
       let insts_left = translate_basicexpr left_expr env in
       let insts_right = translate_basicexpr right_expr env in
