@@ -23,7 +23,6 @@ type environment = {
   cont_args : (S.function_identifier * (S.formal_env * S.identifier)) list;
 }
 
-
 module Env : sig
   val lookup_variable : S.identifier -> environment -> T.var
   val lookup_last_var : environment -> T.var
@@ -149,6 +148,8 @@ T.labelled_instruction list -> T.labelled_instruction list
 
   val translate_Print   : string -> T.labelled_instruction list
   val save_return_address : T.label -> T.labelled_instruction list
+  val translate_IfThenElse : T.labelled_instruction list * T.labelled_instruction list *
+T.labelled_instruction list -> T.labelled_instruction list
 
 end = struct
   let translate_binop   = FopixToJavix.translate_binop
@@ -162,21 +163,21 @@ end = struct
   let translate_binop_comp_with_new_label = 
     FopixToJavix.translate_binop_comp_with_new_label
   
-  let translate_binop   = FopixToJavix.translate_binop
-  let box_after         = FopixToJavix.box_after
-  let bipush_box        = FopixToJavix.bipush_box
-  let unbox_after       = FopixToJavix.unbox_after
-  let unbox_before      = FopixToJavix.unbox_before
-  let translate_Num     = FopixToJavix.translate_Num
-  let translate_FunName = FopixToJavix.translate_FunName
-  let translate_Var     = FopixToJavix.translate_Var
-  let translate_Binop   = FopixToJavix.translate_Binop
-  let translate_BlockNew= FopixToJavix.translate_BlockNew
-  let translate_BlockGet= FopixToJavix.translate_BlockGet
-  let translate_BlockSet= FopixToJavix.translate_BlockSet
-  let translate_Print   = FopixToJavix.translate_Print
-  let save_return_address = FopixToJavix.save_return_address
-
+  let translate_binop      = FopixToJavix.translate_binop
+  let box_after            = FopixToJavix.box_after
+  let bipush_box           = FopixToJavix.bipush_box
+  let unbox_after          = FopixToJavix.unbox_after
+  let unbox_before         = FopixToJavix.unbox_before
+  let translate_Num        = FopixToJavix.translate_Num
+  let translate_FunName    = FopixToJavix.translate_FunName
+  let translate_Var        = FopixToJavix.translate_Var
+  let translate_Binop      = FopixToJavix.translate_Binop
+  let translate_BlockNew   = FopixToJavix.translate_BlockNew
+  let translate_BlockGet   = FopixToJavix.translate_BlockGet
+  let translate_BlockSet   = FopixToJavix.translate_BlockSet
+  let translate_Print      = FopixToJavix.translate_Print
+  let save_return_address  = FopixToJavix.save_return_address
+  let translate_IfThenElse = FopixToJavix.translate_IfThenElse
 end
 
 (** Initially, the environment is empty. *)
