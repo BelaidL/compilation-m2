@@ -319,7 +319,7 @@ let fun_prolog fun_id formals env =
     ),
    env)
 
-let tarnslate_definition (def:S.definition) (env: environment) : 
+let translate_definition (def:S.definition) (env: environment) : 
 (T.labelled_instruction list) * environment =
   match def with
   | S.DefFun (fun_id, formals, body) -> 
@@ -355,7 +355,7 @@ let rec translate (p : S.t) env : T.t * environment =
 
   let env', defs_instrs = (
     List.fold_left (fun (env,instrs) def -> 
-      let instr_list,env = tarnslate_definition def env in
+      let instr_list,env = translate_definition def env in
       (env, (instrs @ instr_list)) ) (env,[]) defs' ) in
   
   let main_code = translate_tailexpr main' env in
