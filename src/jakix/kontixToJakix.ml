@@ -19,26 +19,39 @@ type environment = {
       and their formal arguments. *)
   function_formals : (S.function_identifier * S.formals) list;
   cont_stack       : (S.function_identifier * T.label) list;
-  cont_args        : (S.function_identifier * (S.formal_env * S.identifier)) list;
+
+  cont_args : (S.function_identifier * (S.formal_env * S.identifier)) list;
 }
 
 
 module Env : sig
   val lookup_variable : S.identifier -> environment -> T.var
   val lookup_last_var : environment -> T.var
+
   (** [lookup_function_label f env] returns the label of [f] in [env]. *)
   val lookup_function_label : S.identifier -> environment -> T.label
-  (** [lookup_function_formals f env] returns the formal arguments of [f] in [env]. *)
-  val lookup_function_formals :
-    S.function_identifier -> environment -> S.formals
-  val lookup_cont_args : S.function_identifier -> environment -> (S.formal_env * S.identifier)
+
+  (** [lookup_function_formals f env] returns the formal arguments
+      of [f] in [env]. *)
+  val lookup_function_formals : 
+S.function_identifier -> environment -> S.formals
+
+  val lookup_cont_args: S.function_identifier -> environment -> 
+(S.formal_env * S.identifier)
+
   val bind_function_label : S.function_identifier -> environment -> environment
+
   val bind_function_formals :
     S.function_identifier -> S.formals -> environment -> environment
 
   val bind_variable : environment -> S.identifier -> T.var * environment
-  val bind_cont_args : S.function_identifier -> S.formal_env -> S.identifier -> environment -> environment
-  val bind_cont_stack_label : S.function_identifier -> environment -> environment
+
+  val bind_cont_args : S.function_identifier -> S.formal_env -> S.identifier ->
+environment -> environment
+
+  val bind_cont_stack_label : 
+S.function_identifier -> environment -> environment
+
   val current_cont : environment -> (S.function_identifier * T.label) option
   val clear_all_variables : environment -> environment
  
@@ -98,17 +111,17 @@ end = struct
 end
  
 module Utils : sig 
-  val translate_binop      : S.binop -> T.instruction
-  val translate_cmpop      : S.binop -> T.cmpop
-  val unlabelled_instr     : T.instruction -> T.labelled_instruction
-  val unlabelled_instrs    : 
-  (T.instruction list) -> (T.labelled_instruction list)
-  val labelled_instr       : T.label -> T.instruction -> T.labelled_instruction
-  val labelled_instrs      : 
-  T.label -> (T.instruction list) -> (T.labelled_instruction list)
-  val new_label            : string -> T.label
-  val fun_epilog           : (T.labelled_instruction list)
-  val translate_binop_comp_with_new_label: (S.binop -> T.instruction * T.label)
+  val translate_binop   : S.binop -> T.instruction
+  val translate_cmpop   : S.binop -> T.cmpop
+  val unlabelled_instr  : T.instruction -> T.labelled_instruction
+  val unlabelled_instrs : (T.instruction list) -> (T.labelled_instruction list)
+  val labelled_instr    : T.label -> T.instruction -> T.labelled_instruction
+  val labelled_instrs   : 
+T.label -> (T.instruction list) -> (T.labelled_instruction list)
+
+  val new_label         : string -> T.label
+  val fun_epilog        : (T.labelled_instruction list)
+  val translate_binop_comp_with_new_label : (S.binop -> T.instruction * T.label)
   val translate_binop   : (S.binop -> T.instruction)
   val box_after         : T.instruction list -> T.instruction list
   val bipush_box        : (int -> T.instruction list)
@@ -136,15 +149,6 @@ T.labelled_instruction list -> T.labelled_instruction list
 
   val translate_Print   : string -> T.labelled_instruction list
   val save_return_address : T.label -> T.labelled_instruction list
-  val translate_binop      : (S.binop -> T.instruction)
-  val box_after            : T.instruction list -> T.instruction list
-  val bipush_box           : (int -> T.instruction list)
-  val unbox_after          : 
-  T.labelled_instruction list -> T.labelled_instruction list
-  val unbox_before         : T.instruction list -> T.instruction list
-  val append_if_icmp       : 
-  T.labelled_instruction list -> T.labelled_instruction list
-  val get_if_true_label_from_cond_codes : ('a * T.instruction) list -> T.label
 
 end = struct
   let translate_binop   = FopixToJavix.translate_binop
@@ -156,8 +160,8 @@ end = struct
   let new_label         = FopixToJavix.new_label
   let fun_epilog        = FopixToJavix.fun_epilog
   let translate_binop_comp_with_new_label = 
-  FopixToJavix.translate_binop_comp_with_new_label
-
+    FopixToJavix.translate_binop_comp_with_new_label
+  
   let translate_binop   = FopixToJavix.translate_binop
   let box_after         = FopixToJavix.box_after
   let bipush_box        = FopixToJavix.bipush_box
@@ -172,9 +176,6 @@ end = struct
   let translate_BlockSet= FopixToJavix.translate_BlockSet
   let translate_Print   = FopixToJavix.translate_Print
   let save_return_address = FopixToJavix.save_return_address
-  let append_if_icmp    = FopixToJavix.append_if_icmp
-  let get_if_true_label_from_cond_codes = 
-  FopixToJavix.get_if_true_label_from_cond_codes
 
 end
 
@@ -207,6 +208,7 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
      let v = Env.lookup_variable id env in
      Utils.translate_Var v
 
+
   | S.Let (id, expr, expr') -> 
      let var, env' = Env.bind_variable env id in
      let instrs = 
@@ -214,87 +216,27 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
      let instrs' = translate_basicexpr expr' env' in instrs @ instrs'
 
   | S.IfThenElse _ -> failwith "TODO"
-  | S.Num i -> Utils.unlabelled_instrs (Utils.bipush_box i)
-
-  | S.FunName fun_id ->
-      let fun_label = Env.lookup_function_label fun_id env in
-      Utils.unlabelled_instrs (
-        T.Comment ("Push the encoded label of the function " ^ fun_id) ::
-        Utils.bipush_box (Labels.encode fun_label)
-      )
-
-  | S.Var id ->
-      let v  = Env.lookup_variable id env in
-      Utils.unlabelled_instrs [T.Aload v]
-
-  | S.Let (id, expr, expr') ->
-      let (var, env') = Env.bind_variable env id in
-      let instrs =
-        translate_basicexpr expr env @ Utils.unlabelled_instrs [T.Astore var] in
-      let instrs' = translate_basicexpr expr' env' in
-      instrs @ instrs'
-
-  | S.IfThenElse (cond_expr, then_expr, else_expr) ->
-      let cond_codes' = translate_basicexpr cond_expr env in
-      let cond_codes = Utils.append_if_icmp cond_codes' in
-      let then_codes = translate_basicexpr then_expr env in
-      let else_codes = translate_basicexpr else_expr env in
-      let if_true_label = Utils.get_if_true_label_from_cond_codes cond_codes in
-      let close_label = Utils.new_label "close" in
-      cond_codes @
-      else_codes @
-      Utils.unlabelled_instr (T.Goto close_label) ::
-      Utils.labelled_instr if_true_label (T.Comment "then_start") ::
-      then_codes @
-      Utils.labelled_instrs close_label [T.Comment "end_if"]
-
   | S.BinOp (binop, left_expr, right_expr) -> 
-      let insts_left = translate_basicexpr left_expr env in
-      let insts_right = translate_basicexpr right_expr env in
-      begin match binop with
-      | S.Add | S.Sub | S.Mul | S.Div | S.Mod ->
-          let op = Utils.translate_binop binop in
-          Utils.unbox_after insts_left @ Utils.unbox_after insts_right @
-          Utils.unlabelled_instrs (Utils.box_after [op])
+     let insts_left = translate_basicexpr left_expr env in
+     let insts_right = translate_basicexpr right_expr env in
+     Utils.translate_Binop insts_left insts_right binop
 
-      | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
-          let op, to_label = Utils.translate_binop_comp_with_new_label binop in
-          let close_label = Utils.new_label "close" in
-          Utils.unbox_after insts_left @
-          Utils.unbox_after insts_right @
-          Utils.unlabelled_instrs [op; T.Bipush 0] @
-          Utils.unlabelled_instr (T.Goto close_label) ::
-          Utils.labelled_instr to_label (T.Bipush 1) ::
-          Utils.labelled_instrs close_label [T.Box]
-      end
+  | S.BlockNew size_expr -> 
+     let size = translate_basicexpr size_expr env in
+     Utils.translate_BlockNew size
 
-  | S.BlockNew size_expr ->
-      let size = translate_basicexpr size_expr env in
-      Utils.unlabelled_instr (T.Comment "builds an array of java Objects") ::
-      size @
-      Utils.unlabelled_instrs (Utils.unbox_before [T.Anewarray])
+  | S.BlockGet (array_expr, index_expr) -> 
+     let a_instrs = translate_basicexpr array_expr env in
+     let i_instrs = translate_basicexpr index_expr env in
+     Utils.translate_BlockGet a_instrs i_instrs
 
-  | S.BlockGet (array_expr, index_expr) ->
-      let a_instrs = translate_basicexpr array_expr env in
-      let i_instrs = translate_basicexpr index_expr env in
-      Utils.unlabelled_instr (T.Comment "array access: array[index]") ::
-      a_instrs @ Utils.unlabelled_instr T.Checkarray :: i_instrs @
-      Utils.unlabelled_instrs (Utils.unbox_before [T.AAload])
+  | S.BlockSet (array_expr, index_expr, value_expr) -> 
+     let a_instrs = translate_basicexpr array_expr env in
+     let i_instrs = translate_basicexpr index_expr env in
+     let v_instrs = translate_basicexpr value_expr env in
+     Utils.translate_BlockSet a_instrs i_instrs v_instrs
 
-  | S.BlockSet (array_expr, index_expr, value_expr) ->
-      let a_instrs = translate_basicexpr array_expr env in
-      let i_instrs = translate_basicexpr index_expr env in
-      let v_instrs = translate_basicexpr value_expr env in
-      Utils.unlabelled_instrs (
-        T.Comment "array modification: array[index] = value" ::
-        Utils.bipush_box 0
-      ) @
-      a_instrs @
-      Utils.unlabelled_instr T.Checkarray ::
-      Utils.unbox_after i_instrs @ v_instrs @ Utils.unlabelled_instrs [T.AAstore]
-
-  | S.Print s -> Utils.unlabelled_instrs (Utils.box_after [T.Print s])
-
+  | S.Print s -> Utils.translate_Print s
 
 let save_vars env = 
   Utils.unlabelled_instrs (
