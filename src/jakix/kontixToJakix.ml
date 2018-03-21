@@ -288,7 +288,12 @@ let rec translate_tailexpr (expr: S.tailexpr) (env: environment) :
        translate_basicexpr expr env @ Utils.unlabelled_instrs [T.Astore var] in
      let instrs' = translate_tailexpr expr' env' in instrs @ instrs'
 
-  | S.TIfThenElse _ -> failwith "TODO"
+  | S.TIfThenElse (e_cond, e_then, e_else) -> 
+     let cond_codes = translate_basicexpr e_cond env in
+     let then_codes = translate_tailexpr e_then env in
+     let else_codes = translate_tailexpr e_else env in
+     Utils.translate_IfThenElse (cond_codes, then_codes, else_codes)
+
   | S.TPushCont _ -> failwith "TODO"
   | S.TFunCall (fun_expr, args) -> 
      translate_FunCall fun_expr args env
