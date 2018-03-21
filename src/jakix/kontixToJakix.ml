@@ -294,12 +294,18 @@ let rec translate_tailexpr (expr: S.tailexpr) (env: environment) :
      let else_codes = translate_tailexpr e_else env in
      Utils.translate_IfThenElse (cond_codes, then_codes, else_codes)
 
-  | S.TPushCont _ -> failwith "TODO"
+  | S.TPushCont (cont_id, _, e) ->
+      translate_tailexpr e (Env.bind_cont_stack_label cont_id env)
+
   | S.TFunCall (fun_expr, args) -> 
      translate_FunCall fun_expr args env
 
-  | S.TContCall b_expr -> 
-     translate_basicexpr b_expr env  
+  | S.TContCall b_expr -> (
+      match Env.current_cont env with
+      | None -> failwith "No such continuation"
+      | Some fun_id ->
+          translate_tailexpr (S.TFunCall (S.FunName fun_id, [b_expr])) env
+    )
 
 let translate_fun_body fun_id body env : (T.labelled_instruction list) = 
   Utils.unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
