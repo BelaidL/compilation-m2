@@ -216,7 +216,12 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
        translate_basicexpr expr env @ Utils.unlabelled_instrs [T.Astore var] in
      let instrs' = translate_basicexpr expr' env' in instrs @ instrs'
 
-  | S.IfThenElse _ -> failwith "TODO"
+  | S.IfThenElse (cond_expr, then_expr, else_expr) ->
+      let cond_codes' = translate_basicexpr cond_expr env in
+      let then_codes = translate_basicexpr then_expr env in
+      let else_codes = translate_basicexpr else_expr env in
+      Utils.translate_IfThenElse (cond_codes', then_codes, else_codes)
+
   | S.BinOp (binop, left_expr, right_expr) -> 
      let insts_left = translate_basicexpr left_expr env in
      let insts_right = translate_basicexpr right_expr env in
@@ -336,14 +341,14 @@ let collect_function_info prog env =
   List.fold_left collect_function_info env prog
 
 let rec translate (p : S.t) env : T.t * environment = 
-  let cont_init,id_init = "_K00","identifier_init" in
-  let defs,main = p in
-  let defs',main' = 
-(S.DefCont (cont_init, [],id_init ,main)) :: defs, (S.TPushCont (cont_init,[],main)) in
+  let cont_init,id_init = "_K00", "identifier_init" in
+  let defs, main = p in
+  let defs', main' = 
+(S.DefCont (cont_init, [], id_init, main)) :: defs, (S.TPushCont (cont_init, [], main)) in
 
   let env = collect_function_info defs' env in
 
-  let env',defs_instrs = (
+  let env', defs_instrs = (
     List.fold_left (fun (env,instrs) def -> 
       let instr_list,env = tarnslate_definition def env in
       (env, (instrs @ instr_list)) ) (env,[]) defs' ) in

@@ -243,7 +243,6 @@ let translate_Binop insts_left insts_right binop =
           let op = translate_binop binop in
           unbox_after insts_left @ unbox_after insts_right @
           unlabelled_instrs (box_after [op])
-
             
       | S.Eq | S.Le | S.Lt | S.Ge | S.Gt ->
           let op, to_label = translate_binop_comp_with_new_label binop in
@@ -277,6 +276,17 @@ let translate_BlockSet a_instrs i_instrs v_instrs  =
 
 let translate_Print s = unlabelled_instrs (box_after [T.Print s])
 
+let translate_IfThenElse (cond_codes, then_codes, else_codes) =
+      let cond_codes' = append_if_icmp cond_codes in
+      let if_true_label = get_if_true_label_from_cond_codes cond_codes' in
+      let close_label = new_label "close" in
+      cond_codes' @
+      else_codes @
+      unlabelled_instr (T.Goto close_label) ::
+      labelled_instr if_true_label (T.Comment "then_start") ::
+      then_codes @
+      labelled_instrs close_label [T.Comment "end_if"]
+
 (* We translate a Fopix expression into a list of labelled Javix
    instructions.  *)
 let rec translate_expression (expr : S.expression) (env : environment) :
@@ -301,19 +311,11 @@ let rec translate_expression (expr : S.expression) (env : environment) :
 
   | S.IfThenElse (cond_expr, then_expr, else_expr) ->
       let cond_codes' = translate_expression cond_expr env in
-      let cond_codes = append_if_icmp cond_codes' in
       let then_codes = translate_expression then_expr env in
       let else_codes = translate_expression else_expr env in
-      let if_true_label = get_if_true_label_from_cond_codes cond_codes in
-      let close_label = new_label "close" in
-      cond_codes @
-      else_codes @
-      unlabelled_instr (T.Goto close_label) ::
-      labelled_instr if_true_label (T.Comment "then_start") ::
-      then_codes @
-      labelled_instrs close_label [T.Comment "end_if"]
+      translate_IfThenElse (cond_codes', then_codes, else_codes)
 
-  | S.BinOp (binop, left_expr, right_expr) ->
+  | S.BinOp (binop, left_expr, right_expr) -> 
       let insts_left = translate_expression left_expr env in
       let insts_right = translate_expression right_expr env in
       translate_Binop insts_left insts_right binop
