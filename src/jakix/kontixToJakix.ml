@@ -269,15 +269,15 @@ let call_fun fun_expr env =
      Utils.unlabelled_instrs [T.Goto Dispatcher.label]
 
 let translate_FunCall fun_expr args env =
-  let return_label = Utils.new_label "return" in
-     save_vars env @
-     Utils.save_return_address return_label @
+  (* let return_label = Utils.new_label "return" in *)
+     (* save_vars env @ *)
+     (* Utils.save_return_address return_label @ *)
      pass_fun_args args env @
-     call_fun fun_expr env @
-     Utils.labelled_instrs return_label (
-       T.Comment "Returned from the function call" ::
-       restore_vars env
-     )
+     call_fun fun_expr env 
+     (* Utils.labelled_instrs return_label ( *)
+     (*   T.Comment "Returned from the function call" :: *)
+     (*   restore_vars env *)
+     (* ) *)
 
 let rec translate_tailexpr (expr: S.tailexpr) (env: environment) : 
 (T.labelled_instruction list) = 
