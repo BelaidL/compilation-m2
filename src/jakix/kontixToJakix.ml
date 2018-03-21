@@ -130,19 +130,25 @@ T.label -> (T.instruction list) -> (T.labelled_instruction list)
   val translate_Num     : int -> T.labelled_instruction list
   val translate_FunName : 
 S.function_identifier -> T.label -> T.labelled_instruction list
+
   val translate_Var     : T.var -> T.labelled_instruction list
   val translate_Binop   : 
 T.labelled_instruction list -> T.labelled_instruction list -> S.binop -> 
 T.labelled_instruction list
+
   val translate_BlockNew: 
 T.labelled_instruction list -> T.labelled_instruction list
+
   val translate_BlockGet: 
 T.labelled_instruction list -> T.labelled_instruction list -> 
 T.labelled_instruction list
+
   val translate_BlockSet: 
 T.labelled_instruction list -> T.labelled_instruction list ->
 T.labelled_instruction list -> T.labelled_instruction list
+
   val translate_Print   : string -> T.labelled_instruction list
+  val save_return_address : T.label -> T.labelled_instruction list
 
 end = struct
   let translate_binop   = FopixToJavix.translate_binop
@@ -169,6 +175,7 @@ end = struct
   let translate_BlockGet= FopixToJavix.translate_BlockGet
   let translate_BlockSet= FopixToJavix.translate_BlockSet
   let translate_Print   = FopixToJavix.translate_Print
+  let save_return_address = FopixToJavix.save_return_address
 
 end
 
@@ -205,7 +212,7 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
      let var, env' = Env.bind_variable env id in
      let instrs = 
        translate_basicexpr expr env @ Utils.unlabelled_instrs [T.Astore var] in
-     let instrs' = translate_basicexpr expr' env in instrs @ instrs'
+     let instrs' = translate_basicexpr expr' env' in instrs @ instrs'
 
   | S.IfThenElse _ -> failwith "TODO"
   | S.BinOp (binop, left_expr, right_expr) -> 
@@ -230,36 +237,119 @@ let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
 
   | S.Print s -> Utils.translate_Print s
 
+let save_vars env = 
+  Utils.unlabelled_instrs (
+    T.Comment "Save variables onto the stack" ::
+    List.map (fun (_,var) -> T.Aload var) env.variables
+  )
+
+let restore_vars env = 
+  ExtStd.List.flat_map (fun (_,var) -> [T.Swap; T.Astore var])
+    (List.rev env.variables)
+
+let pass_fun_args args env =
+  Utils.unlabelled_instr (T.Comment "Pass function arguments") ::
+  ExtStd.List.flat_map (fun arg -> translate_basicexpr arg env) args
+
+let call_fun fun_expr env = 
+  match fun_expr with
+  | S.FunName f ->
+     Utils.unlabelled_instrs [T.Goto (Env.lookup_function_label f env)]
+
+  | _ -> 
+     Utils.unlabelled_instr (T.Comment "Compute the function to call") ::
+     translate_basicexpr fun_expr env @
+     Utils.unlabelled_instrs [T.Goto Dispatcher.label]
+
+let translate_FunCall fun_expr args env =
+  let return_label = Utils.new_label "return" in
+     save_vars env @
+     Utils.save_return_address return_label @
+     pass_fun_args args env @
+     call_fun fun_expr env @
+     Utils.labelled_instrs return_label (
+       T.Comment "Returned from the function call" ::
+       restore_vars env
+     )
+
 let rec translate_tailexpr (expr: S.tailexpr) (env: environment) : 
 (T.labelled_instruction list) = 
   match expr with
-  | S.TLet _ -> failwith "TODO"
+  | S.TLet (id, expr, expr') -> 
+     let var, env' = Env.bind_variable env id in
+     let instrs = 
+       translate_basicexpr expr env @ Utils.unlabelled_instrs [T.Astore var] in
+     let instrs' = translate_tailexpr expr' env' in instrs @ instrs'
+
   | S.TIfThenElse _ -> failwith "TODO"
   | S.TPushCont _ -> failwith "TODO"
-  | S.TFunCall _ -> failwith "TODO"
-  | S.TContCall _ -> failwith "TODO"
+  | S.TFunCall (fun_expr, args) -> 
+     translate_FunCall fun_expr args env
+
+  | S.TContCall b_expr -> 
+     translate_basicexpr b_expr env  
 
 let translate_fun_body fun_id body env : (T.labelled_instruction list) = 
   Utils.unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
   (translate_tailexpr body env)
 
+let store_fun_args formals env =
+  List.fold_left (fun (instrs, env) formal ->
+      let var, env = Env.bind_variable env formal in
+      (T.Astore var :: instrs, env)
+    ) ([], env) formals
+
+let fun_prolog fun_id formals env =
+  let instrs, env = store_fun_args formals (Env.clear_all_variables env) in
+  (Utils.labelled_instrs (Env.lookup_function_label fun_id env) (
+      T.Comment "Store the arguments in variables" ::
+      instrs
+    ),
+   env)
+
 let tarnslate_definition (def:S.definition) (env: environment) : 
 (T.labelled_instruction list) * environment =
   match def with
-  | S.DefFun _ -> failwith "TODO"
-  | S.DefCont _ -> failwith "TODO"
+  | S.DefFun (fun_id, formals, body) -> 
+      let prolog, env' = fun_prolog fun_id formals env in
+      (prolog @ translate_fun_body fun_id body env' @ Utils.fun_epilog, env)
+
+  | S.DefCont (cont_id, formals, id, body) -> 
+      let prolog, env' = fun_prolog cont_id (id :: formals) env in
+      (prolog @ translate_fun_body cont_id body env' @ Utils.fun_epilog, env)
 
 let varAndStack_size (p: S.t) (env: environment) : int * int = failwith "TODO"
 
+let collect_function_info prog env =
+  let collect_function_info env = function
+    | S.DefFun (fun_id, formals, _) ->
+        env
+        |> Env.bind_function_label fun_id
+        |> Env.bind_function_formals fun_id formals
+    | S.DefCont (cont_id, formals_env, id, _) ->
+        env
+        |> Env.bind_function_label cont_id
+        |> Env.bind_cont_args cont_id formals_env id
+  in
+  List.fold_left collect_function_info env prog
+
 let rec translate (p : S.t) env : T.t * environment = 
+  let cont_init,id_init = "_K00","identifier_init" in
   let defs,main = p in
-  let main_code = translate_tailexpr main env in
+  let defs',main' = 
+(S.DefCont (cont_init, [],id_init ,main)) :: defs, (S.TPushCont (cont_init,[],main)) in
+
+  let env = collect_function_info defs' env in
+
   let env',defs_instrs = (
     List.fold_left (fun (env,instrs) def -> 
       let instr_list,env = tarnslate_definition def env in
-      (env, (instrs @ instr_list)) ) (env,[]) defs ) in
-
-  let varSize, stackSize = varAndStack_size p env' in 
+      (env, (instrs @ instr_list)) ) (env,[]) defs' ) in
+  
+  let main_code = translate_tailexpr main' env in
+  
+  (* let varSize, stackSize = varAndStack_size p env' in  *)
   let code = main_code @ defs_instrs @ Dispatcher.code () in
-  (basic_code code varSize stackSize), env'
+  (* (basic_code code varSize stackSize), env' *)
+  (basic_code code 100 1000  ), env'
   
