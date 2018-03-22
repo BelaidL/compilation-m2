@@ -164,8 +164,9 @@ and interp r =
      let v = pop r "AAstore" in
      let i = pop_int r "AAstore" in
      let a = pop r "AAstore" in
-     (match a with
-      | VArray a -> a.(i) <- v; next r
+     (match v,a with
+      | VInt _, _ -> failwith "AAstore of a non-boxed integer"
+      | _,VArray a -> a.(i) <- v; next r
       | _ -> failwith "AAstore on a non-VArray")
   | AAload ->
      let i = pop_int r "AAstore" in
