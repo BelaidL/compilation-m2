@@ -1,5 +1,4 @@
 (** This module implements a compiler from Kontix to Fopix. *)
-
 let error msg = Error.error "compilation" Position.dummy msg
 let cont_init,id_init = "_K00", "identifier_init"
 
@@ -12,107 +11,17 @@ module T = Target.AST
 module Dispatcher = FopixToJavix.Dispatcher
 module Labels = FopixToJavix.Labels
 
-type environment = {
+type environment = FopixToJavix.environment = {
   nextvar          : int;
   variables        : (S.identifier * T.var) list;
   function_labels  : (S.function_identifier * T.label) list;
   (** [function_formals] maintains the relation between function identifiers
       and their formal arguments. *)
   function_formals : (S.function_identifier * S.formals) list;
-  cont_stack       : S.function_identifier list;
-
-  cont_args : (S.function_identifier * (S.formal_env * S.identifier)) list;
 }
 
-module Env : sig
-  val lookup_variable : S.identifier -> environment -> T.var
-  val lookup_last_var : environment -> T.var
 
-  (** [lookup_function_label f env] returns the label of [f] in [env]. *)
-  val lookup_function_label : S.identifier -> environment -> T.label
-
-  (** [lookup_function_formals f env] returns the formal arguments
-      of [f] in [env]. *)
-  val lookup_function_formals : 
-S.function_identifier -> environment -> S.formals
-
-  val lookup_cont_args: S.function_identifier -> environment -> 
-(S.formal_env * S.identifier)
-
-  val bind_function_label : S.function_identifier -> environment -> environment
-
-  val bind_function_formals :
-    S.function_identifier -> S.formals -> environment -> environment
-
-  val bind_variable : environment -> S.identifier -> T.var * environment
-
-  val bind_cont_args : S.function_identifier -> S.formal_env -> S.identifier ->
-environment -> environment
-
-  val bind_cont_stack_label : 
-S.function_identifier -> environment -> environment
-
-  val current_cont : environment -> S.function_identifier option * environment
-  val clear_all_variables : environment -> environment
- 
-end = struct
-
-  let lookup_variable id env =
-     try
-       List.assoc id env.variables
-     with Not_found -> error ("Variable " ^ id ^ " not found")
-      
-  let lookup_last_var env = T.Var (pred env.nextvar)
-
-  let lookup_function_label f env =
-    try List.assoc f env.function_labels with
-    | Not_found -> error ("Function " ^ f ^ " not found")
-
-  let lookup_function_formals f env =
-    List.assoc f env.function_formals
-
-  let lookup_cont_args cont_id env = 
-    List.assoc cont_id env.cont_args
-
-  let bind_variable env x =
-    let v = T.Var env.nextvar in
-    v,
-    { env with
-      nextvar = env.nextvar + 1;
-      variables = (x,v) :: env.variables }
-
-  let bind_function_label fun_id env = {
-    env with
-      function_labels =
-      (fun_id, FopixToJavix.Env.fresh_function_label fun_id) :: 
-        env.function_labels
-  }
-
-  let bind_function_formals fun_id formals env = {
-    env with function_formals = (fun_id, formals) :: env.function_formals
-  }
-   
-
-  let bind_cont_args cont_id formals_env identifier env = {
-    env with cont_args = (cont_id,(formals_env,identifier)) :: env.cont_args
-  }
-
-  let bind_cont_stack_label cont_id env = {
-    env with cont_stack = (cont_id :: env.cont_stack)
-  }
-
-  let current_cont env =
-     match env.cont_stack with
-    | [] -> None,env
-    | cont :: conts -> 
-       let env' = {
-         env with cont_stack = conts
-       } in
-       (Some cont), env'
-
-  let clear_all_variables env = {env with variables = []; nextvar = 0}
-
-end
+module Env = FopixToJavix.Env
  
 module Utils : sig 
   val translate_binop   : S.binop -> T.instruction
@@ -121,8 +30,7 @@ module Utils : sig
   val unlabelled_instrs : (T.instruction list) -> (T.labelled_instruction list)
   val labelled_instr    : T.label -> T.instruction -> T.labelled_instruction
   val labelled_instrs   : 
-T.label -> (T.instruction list) -> (T.labelled_instruction list)
-
+    T.label -> (T.instruction list) -> (T.labelled_instruction list)
   val new_label         : string -> T.label
   val fun_epilog        : (T.labelled_instruction list)
   val translate_binop_comp_with_new_label : (S.binop -> T.instruction * T.label)
@@ -133,28 +41,24 @@ T.label -> (T.instruction list) -> (T.labelled_instruction list)
   val unbox_before      : T.instruction list -> T.instruction list
   val translate_Num     : int -> T.labelled_instruction list
   val translate_FunName : 
-S.function_identifier -> T.label -> T.labelled_instruction list
-
+    S.function_identifier -> T.label -> T.labelled_instruction list
   val translate_Var     : T.var -> T.labelled_instruction list
   val translate_Binop   : 
-T.labelled_instruction list -> T.labelled_instruction list -> S.binop -> 
-T.labelled_instruction list
-
+    T.labelled_instruction list -> T.labelled_instruction list -> S.binop -> 
+    T.labelled_instruction list
   val translate_BlockNew: 
-T.labelled_instruction list -> T.labelled_instruction list
-
+    T.labelled_instruction list -> T.labelled_instruction list
   val translate_BlockGet: 
-T.labelled_instruction list -> T.labelled_instruction list -> 
-T.labelled_instruction list
-
+    T.labelled_instruction list -> T.labelled_instruction list -> 
+    T.labelled_instruction list
   val translate_BlockSet: 
-T.labelled_instruction list -> T.labelled_instruction list ->
-T.labelled_instruction list -> T.labelled_instruction list
-
+    T.labelled_instruction list -> T.labelled_instruction list ->
+    T.labelled_instruction list -> T.labelled_instruction list
   val translate_Print   : string -> T.labelled_instruction list
   val save_return_address : T.label -> T.labelled_instruction list
-  val translate_IfThenElse : T.labelled_instruction list * T.labelled_instruction list *
-T.labelled_instruction list -> T.labelled_instruction list
+  val translate_IfThenElse : T.labelled_instruction list * 
+    T.labelled_instruction list * T.labelled_instruction list -> 
+    T.labelled_instruction list
 
 end = struct
   let translate_binop   = FopixToJavix.translate_binop
@@ -167,7 +71,6 @@ end = struct
   let fun_epilog        = FopixToJavix.fun_epilog
   let translate_binop_comp_with_new_label = 
     FopixToJavix.translate_binop_comp_with_new_label
-  
   let translate_binop      = FopixToJavix.translate_binop
   let box_after            = FopixToJavix.box_after
   let bipush_box           = FopixToJavix.bipush_box
@@ -189,10 +92,8 @@ end
 let initial_environment () = {
   nextvar          = 0;
   variables        = [];
-  function_labels  = [(cont_init, T.Label cont_init)];
+  function_labels  = [];
   function_formals = [];
-  cont_stack       = [cont_init];
-  cont_args        = [];
 }
 
 let basic_code code varSize stackSize = {
@@ -200,12 +101,13 @@ let basic_code code varSize stackSize = {
   T.code = code;
   T.varsize = varSize;
   T.stacksize = stackSize;
-}
+} 
 
 let rec translate_basicexpr (expr: S.basicexpr) (env: environment) :
 (T.labelled_instruction list) = 
   match expr with
   | S.Num i -> Utils.translate_Num i
+ 
   | S.FunName fun_id -> 
      let fun_label = Env.lookup_function_label fun_id env in
      Utils.translate_FunName fun_id fun_label
@@ -274,8 +176,9 @@ let call_fun fun_expr env =
      Utils.unlabelled_instrs [T.Goto Dispatcher.label]
 
 let translate_FunCall fun_expr args env =
+     (* this code can be changed when we implement TPushCont and TContCall*)
      pass_fun_args args env @
-     call_fun fun_expr env 
+     call_fun fun_expr env
 
 let rec translate_tailexpr (expr: S.tailexpr) (env: environment) : 
 (T.labelled_instruction list) = 
@@ -292,18 +195,12 @@ let rec translate_tailexpr (expr: S.tailexpr) (env: environment) :
      let else_codes = translate_tailexpr e_else env in
      Utils.translate_IfThenElse (cond_codes, then_codes, else_codes)
 
-  | S.TPushCont (cont_id, _, e) ->
-      translate_tailexpr e (Env.bind_cont_stack_label cont_id env)
+  | S.TPushCont (cont_id, _, e) -> failwith "TODO"
 
   | S.TFunCall (fun_expr, args) -> 
      translate_FunCall fun_expr args env
 
-  | S.TContCall b_expr -> (
-      match Env.current_cont env with
-      | None, _ -> failwith "No such continuation"
-      | Some fun_id, env' ->
-          translate_tailexpr (S.TFunCall (S.FunName fun_id, [b_expr])) env'
-    )
+  | S.TContCall b_expr -> failwith "TODO"
 
 let translate_fun_body fun_id body env : (T.labelled_instruction list) = 
   Utils.unlabelled_instr (T.Comment ("Body of the function " ^ fun_id)) ::
@@ -345,29 +242,29 @@ let collect_function_info prog env =
     | S.DefCont (cont_id, formals_env, id, _) ->
         env
         |> Env.bind_function_label cont_id
-        |> Env.bind_cont_args cont_id formals_env id
+        |> Env.bind_function_formals cont_id (id :: formals_env)
   in
   List.fold_left collect_function_info env prog
 
 let rec translate (p : S.t) env : T.t * environment = 
   let defs, main = p in
-
-  let env = collect_function_info defs env in
-
-  let env', defs_instrs = (
+  let env1 = collect_function_info defs env in
+  let env2, defs_instrs = (
     List.fold_left (fun (env,instrs) def -> 
       let instr_list,env = translate_definition def env in
-      (env, (instrs @ instr_list)) ) (env,[]) defs) in
+      (env, (instrs @ instr_list)) ) (env1,[]) defs) in
   
-  let main_code = translate_tailexpr main env in
-  
-  (* let varSize, stackSize = varAndStack_size p env' in  *)
+  let main_code = translate_tailexpr main env2 in
+  (* let varSize, stackSize = varAndStack_size p env2 in  *)
+  (* let pre_code = TODO in *)
+  (* let post_code = TODO in *)
   let code =
+    (* pre_code @ *)
     main_code @
-    Utils.labelled_instrs (T.Label cont_init) [T.Unbox; T.Ireturn] @
+    (* post_code @ *)
     defs_instrs @
     Dispatcher.code ()
   in
   (* (basic_code code varSize stackSize), env' *)
-  (basic_code code 100 1000  ), env'
+  (basic_code code 100 1000  ), env2
   
