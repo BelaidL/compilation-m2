@@ -56,7 +56,7 @@
 
 # L'exemple du cour CPS
 
-(tjr l'xemple de tree2list)
+(toujours l'exemple de tree2list)
 
 ```ocaml
   let rec concat l1 l2 = 
@@ -109,8 +109,8 @@
 ----/\   /\----------------------| aux2   E2 [1]
 ---1  2 3  4---------------------| tolist aux3 E3 (2)
 ---------------------------------| aux3   E3 [2]
-E0 : env vide initial--------------| concat aux2 E1 [1] [2]
-E1 = (K0,E0,t2)--------------------| concat aux E4 [] [2]
+E0 : env vide initial------------| concat aux2 E1 [1] [2]
+E1 = (K0,E0,t2)------------------| concat aux E4 [] [2]
 E2 = (aux2,E1,(2))---------------| aux    E4 [2]
 E3 = (aux2,E1,[1])---------------| aux2   E1 [1;2]
 E4 = (aux2,E1,1)-----------------| tolist aux3 E5 t2
